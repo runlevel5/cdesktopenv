@@ -565,10 +565,74 @@ Cyan background
 White background
 .LI \f349\fP
 Default background
+.LI \f390\fP
+Bright black display (text)
+.LI \f391\fP
+Bright red display (text)
+.LI \f392\fP
+Bright green display (text)
+.LI \f393\fP
+Bright yellow display (text)
+.LI \f394\fP
+Bright blue display (text)
+.LI \f395\fP
+Bright magenta display (text)
+.LI \f396\fP
+Bright cyan display (text)
+.LI \f397\fP
+Bright white display (text)
+.LI \f3100\fP
+Bright black background
+.LI \f3101\fP
+Bright red background
+.LI \f3102\fP
+Bright green background
+.LI \f3103\fP
+Bright yellow background
+.LI \f3104\fP
+Bright blue background
+.LI \f3105\fP
+Bright magenta background
+.LI \f3106\fP
+Bright cyan background
+.LI \f3107\fP
+Bright white background
+.LI "\f338 ; 5 ;\fP \f2n\fP"
+Foreground colour from the xterm 256-colour palette.
+\f2n\fP is in the range 0\(mi255 and selects, in order, the 8 standard ANSI
+colours (0\(mi7), 8 bright ANSI colours (8\(mi15), a 6\(mu6\(mu6 RGB cube
+(16\(mi231), and a 24-step greyscale ramp (232\(mi255).
+.LI "\f348 ; 5 ;\fP \f2n\fP"
+Background colour from the xterm 256-colour palette
+(same encoding as 38 ; 5 ; \f2n\fP).
+.LI "\f338 ; 2 ;\fP \f2r\fP \f3;\fP \f2g\fP \f3;\fP \f2b\fP"
+Direct-RGB foreground colour.
+\f2r\fP, \f2g\fP, and \f2b\fP are 8-bit channel values (0\(mi255).
+On TrueColor and DirectColor X visuals the requested colour is rendered
+exactly; on other visuals it is rounded to the nearest of the 16 indexed
+colours.
+.LI "\f348 ; 2 ;\fP \f2r\fP \f3;\fP \f2g\fP \f3;\fP \f2b\fP"
+Direct-RGB background colour (same encoding as 38 ; 2 ; \f2r\fP ; \f2g\fP
+; \f2b\fP).
 .PP
+The 256-colour and 24-bit direct-colour sub-sequences are advertised to
+applications via the
+.B dtterm-256color
+and
+.B dtterm-direct
+terminfo entries.
+Set
+.B TERM
+to one of those names (typically in the user's shell rc file) so curses-based
+applications such as
+.BR vim (1),
+.BR tmux (1)
+and
+.BR htop (1)
+can detect and use the wider palette.
 .RE
 .nr )J 15
-.LI "\f2Esc\fP \f3[\fP \f2pi\fP \f3n\fP"
+.LI "\f2Esc\fP \f3[\fP \f2pi\fP \f3n\fP
 (\f3DSR\fP) Device status report.
 Valid supported values for \f2pi\fP are:
 .PP
