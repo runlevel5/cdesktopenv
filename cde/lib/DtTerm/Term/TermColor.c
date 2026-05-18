@@ -62,6 +62,79 @@ static int debugColorsAvailable = 0;
 
 #define	DebugIsColorAvailable()	(!debugColors || (debugColors && (debugColorsAvailable > 0)))
 
+/*
+** xterm's 6-step intensities for the 6x6x6 colour cube.  These exact values
+** are part of the xterm specification (not a linear ramp).
+*/
+static const unsigned char _DtTermCube6[6] = {
+    0x00, 0x5f, 0x87, 0xaf, 0xd7, 0xff
+};
+
+/*
+** Compute the 16-bit X11 RGB triple for an xterm 256-colour index n.
+**   16..231 -> 6x6x6 RGB cube
+**   232..255 -> 24-step greyscale ramp (8, 18, 28, ..., 238)
+** Indices 0..15 are intentionally unhandled here; they map to the static
+** colorPairs[1..16] slots via the normal indexed-colour path.
+*/
+static void
+_DtTermColor256RGB(int n, unsigned short *r, unsigned short *g, unsigned short *b)
+{
+    int v;
+
+    if (n < 16 || n > 255) {
+	*r = *g = *b = 0;
+	return;
+    }
+    if (n < 232) {
+	int idx = n - 16;
+	*r = (unsigned short) (_DtTermCube6[idx / 36]	* 0x0101);
+	*g = (unsigned short) (_DtTermCube6[(idx / 6) % 6]	* 0x0101);
+	*b = (unsigned short) (_DtTermCube6[idx % 6]	* 0x0101);
+	return;
+    }
+    v = 8 + (n - 232) * 10;		/* 232..255 -> 8, 18, ..., 238  */
+    *r = *g = *b = (unsigned short) (v * 0x0101);
+}
+
+Pixel
+_DtTermResolve256Pixel(Widget w, unsigned int xcol)
+{
+    DtTermWidget tw = (DtTermWidget) w;
+    DtTermData td = tw->vt.td;
+    XColor xc;
+
+    if (xcol > 255) {
+	if (!td->colorPairs[0].initialized) {
+	    _DtTermColorInitializeColorPair(w, &td->colorPairs[0]);
+	}
+	return td->colorPairs[0].fg.pixel;
+    }
+    if (td->pal256Allocated[xcol]) {
+	return td->pal256[xcol];
+    }
+
+    _DtTermColor256RGB((int) xcol, &xc.red, &xc.green, &xc.blue);
+    xc.flags = DoRed | DoGreen | DoBlue;
+
+    _DtTermProcessLock();
+    if (DebugIsColorAvailable() &&
+	    XAllocColor(XtDisplay(w), w->core.colormap, &xc)) {
+	td->pal256[xcol] = xc.pixel;
+	td->pal256Allocated[xcol] = True;
+	(void) debugColorsAvailable--;
+	_DtTermProcessUnlock();
+	return xc.pixel;
+    }
+    _DtTermProcessUnlock();
+
+    /* allocation failed (e.g. PseudoColor exhaustion) -> default fg */
+    if (!td->colorPairs[0].initialized) {
+	_DtTermColorInitializeColorPair(w, &td->colorPairs[0]);
+    }
+    return td->colorPairs[0].fg.pixel;
+}
+
 void
 _DtTermColorInit(Widget w)
 {
@@ -187,6 +260,27 @@ _DtTermColorDestroy(Widget w)
 		_DtTermProcessUnlock();
 	    }
 	    td->colorPairs[i].initialized = False;
+	}
+    }
+
+    /*
+    ** Free any xterm 256-palette pixels we lazily allocated.  Batched into
+    ** one XFreeColors call to keep the round-trip count low.
+    */
+    {
+	Pixel pixels[256];
+	int n = 0;
+	for (i = 16; i < 256; i++) {
+	    if (td->pal256Allocated[i]) {
+		pixels[n++] = td->pal256[i];
+		td->pal256Allocated[i] = False;
+	    }
+	}
+	if (n > 0) {
+	    (void) XFreeColors(XtDisplay(w), w->core.colormap, pixels, n, 0);
+	    _DtTermProcessLock();
+	    debugColorsAvailable += n;
+	    _DtTermProcessUnlock();
 	}
     }
     return;

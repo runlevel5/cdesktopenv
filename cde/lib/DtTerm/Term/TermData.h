@@ -125,6 +125,15 @@ typedef struct _DtTermDataRec {
      */
     VtColorPairRec colorPairs[17];	/* default + 16 ANSI colour slots */
 
+    /*
+    ** Lazy cache for the xterm 256-colour palette (entries 16..255).
+    ** Slots 0..15 are never written -- those colours live in colorPairs[]
+    ** above.  pal256Allocated[i] tracks whether pal256[i] holds a Pixel
+    ** that needs to be freed via XFreeColors at widget destroy time.
+    */
+    Pixel    pal256[256];
+    Boolean  pal256Allocated[256];
+
     /*********************************************************************
      * User (and other) Function keys
      */

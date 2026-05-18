@@ -38,5 +38,13 @@ void _DtTermColorInit(Widget w);
 void _DtTermColorDestroy(Widget w);
 void _DtTermColorInitializeColorPair(Widget w, VtColorPair colorPair);
 
+/*
+** Resolve an xterm 256-colour index (16..255) to a Pixel.  Allocates
+** via XAllocColor on first use and caches the result on the widget's
+** DtTermData.  Returns the widget's default fg Pixel on allocation
+** failure or an out-of-range index.
+*/
+Pixel _DtTermResolve256Pixel(Widget w, unsigned int xcol);
+
 #endif	/* _Dt_TermColor_h */
 /* DON'T ADD ANYTHING AFTER THIS #endif... */

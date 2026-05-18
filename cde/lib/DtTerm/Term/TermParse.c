@@ -57,7 +57,7 @@
 
 /*****************************************************************************/
 
-#define NPARAM  16
+#define NPARAM  32
 #define PCOUNT(c)  ((c)->parms[0])
 #define BASE   1   /* row and column count base 0 or 1 */
 
@@ -874,22 +874,71 @@ _DtTermScrollingRegion(Widget w)   /* DECSTBM  CSIp;pr */
   }
 }
 
-void 
+void
 _DtTermCharAttributes(Widget w)   /* SGR CSIpm */
 {
   ParserContext context ;
-  int i,cnt ;
+  int cnt ;
+  int n ;
   Debug('P', fprintf(stderr,">>In func _DtTermCharAttributes\n")) ;
   context = GetParserContext(w) ;
   STORELASTARG(context) ;
-  if(PCOUNT(context)) {
-    for (cnt=1; cnt <= PCOUNT(context); cnt++)
-       _DtTermVideoEnhancement(w,context->parms[cnt]) ;
-   }
-  else
-   _DtTermVideoEnhancement(w,0) ;
-}
+  n = PCOUNT(context) ;
 
+  if (n == 0) {
+    _DtTermVideoEnhancement(w, 0) ;
+    return ;
+  }
+
+  /*
+  ** Walk the parameter list with peek-ahead so the compound colour
+  ** sub-sequences are consumed atomically:
+  **
+  **    38;5;N        indexed 256-colour foreground
+  **    48;5;N        indexed 256-colour background
+  **    38;2;R;G;B    direct-RGB foreground   (truecolor)
+  **    48;2;R;G;B    direct-RGB background   (truecolor)
+  **
+  ** A 38 / 48 followed by anything unrecognised falls through to the
+  ** legacy per-value handler, which leaves the existing behaviour intact.
+  */
+  cnt = 1 ;
+  while (cnt <= n) {
+    int value = context->parms[cnt] ;
+
+    if ((value == 38 || value == 48) && (cnt + 1) <= n) {
+      int     sub  = context->parms[cnt + 1] ;
+      Boolean isBg = (value == 48) ;
+
+      if (sub == 5 && (cnt + 2) <= n) {
+	int xcol = context->parms[cnt + 2] ;
+	if (xcol < 0)   xcol = 0 ;
+	if (xcol > 255) xcol = 255 ;
+	_DtTermSetColor(w, isBg, ENH_MAKE_INDEXED((unsigned int) xcol + 1)) ;
+	cnt += 3 ;
+	continue ;
+      }
+      if (sub == 2 && (cnt + 4) <= n) {
+	int r = context->parms[cnt + 2] ;
+	int g = context->parms[cnt + 3] ;
+	int b = context->parms[cnt + 4] ;
+	if (r < 0) r = 0 ;   if (r > 255) r = 255 ;
+	if (g < 0) g = 0 ;   if (g > 255) g = 255 ;
+	if (b < 0) b = 0 ;   if (b > 255) b = 255 ;
+	_DtTermSetColor(w, isBg,
+			ENH_MAKE_RGB((unsigned int) r,
+				     (unsigned int) g,
+				     (unsigned int) b)) ;
+	cnt += 5 ;
+	continue ;
+      }
+      /* fall through: unrecognised sub-form, dispatch 38/48 as legacy */
+    }
+
+    _DtTermVideoEnhancement(w, value) ;
+    cnt++ ;
+  }
+}
 void 
 _DtTermDeviceAttributes(Widget w)    /* DA CSIpc */
 {

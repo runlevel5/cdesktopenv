@@ -939,6 +939,27 @@ _DtTermFuncTab(Widget w, int count, FunctionSource functionSource)
  */
 
 void
+_DtTermSetColor(Widget w, Boolean isBg, enhValue v)
+{
+    DtTermPrimitiveWidget tw  = (DtTermPrimitiveWidget) w;
+    DtTermPrimData        tpd = tw->term.tpd;
+    DtTermWidget          vtw = (DtTermWidget) w;
+    DtTermData            td  = vtw->vt.td;
+
+    if (isBg) {
+	td->enhBgColorState = v;
+	(void) _DtTermPrimBufferSetEnhancement(tpd->termBuffer,
+		tpd->topRow + tpd->cursorRow, tpd->cursorColumn,
+		enhBgColor, td->enhBgColorState);
+    } else {
+	td->enhFgColorState = v;
+	(void) _DtTermPrimBufferSetEnhancement(tpd->termBuffer,
+		tpd->topRow + tpd->cursorRow, tpd->cursorColumn,
+		enhFgColor, td->enhFgColorState);
+    }
+}
+
+void
 _DtTermVideoEnhancement(Widget w,int value)
 {
     DtTermPrimitiveWidget      tw        = (DtTermPrimitiveWidget) w;

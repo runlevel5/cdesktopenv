@@ -142,7 +142,7 @@ typedef enum _parseState
     KJCODE          /* Kanji State  1/17/86 NY      */
 } parseState;
 
-#define NUM_PARMS  20
+#define NUM_PARMS  32
 
 typedef struct _ParserContextRec
 {

@@ -39,76 +39,89 @@
 #define	ourVideo	(values[(int) enhVideo])
 
 /*
-** Resolve an encoded enhValue colour to a slot in td->colorPairs[].
+** Resolve an encoded enhValue colour to an X Pixel.
 **
-** The colour fields carry a packed (mode, payload) value.  The parser
-** produces ENH_MODE_DEFAULT (-> slot 0, the widget's default fg / bg) and
-** ENH_MODE_INDEXED with payload 1..16 (-> slots 1..8 for the 8 ANSI colours,
-** slots 9..16 for the 8 bright variants).  Anything else is clamped to
-** slot 0 so the resolver stays in range while the palette is extended later.
+** The colour fields carry a packed (mode, payload) value:
+**   ENH_MODE_DEFAULT  -> the widget's default fg / bg from colorPairs[0]
+**   ENH_MODE_INDEXED  -> payload 1..16 picks colorPairs[1..16] directly
+**                        (1..8 standard ANSI, 9..16 bright variants);
+**                        payload 17..256 routes through the xterm 256-colour
+**                        palette resolver (xterm colour 16..255)
+**   ENH_MODE_RGB      -> direct 0xRRGGBB; wired up in a later change
+**
+** For foregrounds, the xterm bold-brightens-fg convention promotes an
+** INDEXED 1..8 payload to its bright twin 9..16 when SGR 1 (BOLD) is set.
+** SGR 2 (HALF_BRIGHT) picks the precomputed `hb` pixel on the underlying
+** colorPair when one is available.  Backgrounds do not get either rule.
 */
-static int
-_DtTermResolveColorPair(enhValue v)
+static Pixel
+_DtTermResolveFgPixel(Widget w, enhValue v, unsigned int videoFlags)
 {
-    unsigned int payload;
+    DtTermWidget tw = (DtTermWidget) w;
+    DtTermData td = tw->vt.td;
+    int slot;
 
-    if (ENH_IS_DEFAULT(v)) {
-	return 0;
-    }
     if (ENH_COLOR_MODE(v) == ENH_MODE_INDEXED) {
-	payload = ENH_COLOR_PAYLOAD(v);
-	if (payload <= 16) {
-	    return (int) payload;
+	slot = (int) ENH_COLOR_PAYLOAD(v);
+	if (IS_BOLD(videoFlags) && slot >= 1 && slot <= 8) {
+	    slot += 8;
+	}
+	if (slot >= 1 && slot <= 16) {
+	    if (!td->colorPairs[slot].initialized) {
+		(void) _DtTermColorInitializeColorPair(w, &td->colorPairs[slot]);
+	    }
+	    if (IS_HALF_BRIGHT(videoFlags) && td->colorPairs[slot].hbValid) {
+		return td->colorPairs[slot].hb.pixel;
+	    }
+	    return td->colorPairs[slot].fg.pixel;
+	}
+	if (slot >= 17 && slot <= 256) {
+	    return _DtTermResolve256Pixel(w, (unsigned int) (slot - 1));
 	}
     }
-    /* mode not yet supported by the resolver -- fall back to default */
-    return 0;
+    /* DEFAULT or unsupported mode -> widget default fg */
+    if (!td->colorPairs[0].initialized) {
+	(void) _DtTermColorInitializeColorPair(w, &td->colorPairs[0]);
+    }
+    if (IS_HALF_BRIGHT(videoFlags) && td->colorPairs[0].hbValid) {
+	return td->colorPairs[0].hb.pixel;
+    }
+    return td->colorPairs[0].fg.pixel;
+}
+
+static Pixel
+_DtTermResolveBgPixel(Widget w, enhValue v)
+{
+    DtTermWidget tw = (DtTermWidget) w;
+    DtTermData td = tw->vt.td;
+    int slot;
+
+    if (ENH_COLOR_MODE(v) == ENH_MODE_INDEXED) {
+	slot = (int) ENH_COLOR_PAYLOAD(v);
+	if (slot >= 1 && slot <= 16) {
+	    if (!td->colorPairs[slot].initialized) {
+		(void) _DtTermColorInitializeColorPair(w, &td->colorPairs[slot]);
+	    }
+	    return td->colorPairs[slot].bg.pixel;
+	}
+	if (slot >= 17 && slot <= 256) {
+	    return _DtTermResolve256Pixel(w, (unsigned int) (slot - 1));
+	}
+    }
+    if (!td->colorPairs[0].initialized) {
+	(void) _DtTermColorInitializeColorPair(w, &td->colorPairs[0]);
+    }
+    return td->colorPairs[0].bg.pixel;
 }
 
 void
 _DtTermEnhProc(Widget w, enhValues values, TermEnhInfo info)
 {
-
     DtTermWidget tw = (DtTermWidget) w;
     DtTermData td = tw->vt.td;
-    int fgPair = _DtTermResolveColorPair(ourFgEnh);
-    int bgPair = _DtTermResolveColorPair(ourBgEnh);
 
-    /*
-    ** xterm convention: a bold ANSI foreground (INDEXED 1..8) renders with
-    ** the bright variant (slots 9..16).  Apply this only when the source
-    ** value is genuinely INDEXED 1..8 so DEFAULT and future direct-RGB
-    ** values pass through unchanged.
-    */
-    if (IS_BOLD(ourVideo) &&
-	ENH_COLOR_MODE(ourFgEnh) == ENH_MODE_INDEXED) {
-	unsigned int p = ENH_COLOR_PAYLOAD(ourFgEnh);
-	if (p >= 1 && p <= 8) {
-	    fgPair = (int) (p + 8);
-	}
-    }
-
-    /* initialize the color pair if we need to... */
-    if (!td->colorPairs[fgPair].initialized) {
-	(void) _DtTermColorInitializeColorPair(w,
-		&td->colorPairs[fgPair]);
-    }
-    if (!td->colorPairs[bgPair].initialized) {
-	(void) _DtTermColorInitializeColorPair(w,
-		&td->colorPairs[bgPair]);
-    }
-
-    /* take care of video enhancements...
-     */
-    /* half bright (picks fg color) ... */
-    if (IS_HALF_BRIGHT(ourVideo) && td->colorPairs[fgPair].hbValid) {
-	info->fg = td->colorPairs[fgPair].hb.pixel;
-    } else {
-	info->fg = td->colorPairs[fgPair].fg.pixel;
-    }
-
-    /* background is always background... */
-    info->bg = td->colorPairs[bgPair].bg.pixel;
+    info->fg = _DtTermResolveFgPixel(w, ourFgEnh, ourVideo);
+    info->bg = _DtTermResolveBgPixel(w, ourBgEnh);
 
     /* if inverse video, swap fg and bg... */
     if (IS_INVERSE(ourVideo)) {
@@ -147,6 +160,6 @@ _DtTermEnhProc(Widget w, enhValues values, TermEnhInfo info)
 	    info->font = td->renderFonts[RENDER_FONT_LINEDRAW].termFont;
 	}
     }
-		
+
     return;
 }
