@@ -120,6 +120,35 @@ _DtTermColorInit(Widget w)
     InitColor(&td->colorPairs[6].bg, 1, 0, 1);	/* 6: bg=magenta	*/
     InitColor(&td->colorPairs[7].bg, 0, 1, 1);	/* 7: bg=cyan		*/
     InitColor(&td->colorPairs[8].bg, 1, 1, 1);	/* 8: bg=white		*/
+
+    /*
+    ** xterm-style bright colour defaults for slots 9..16.  RGB values are
+    ** stored as 16-bit X11 channels; the high byte holds the 8-bit value
+    ** and the low byte mirrors it (0x80 -> 0x8080) so the channel scales
+    ** linearly across the 16-bit range.  These come into play for SGR
+    ** 90-97 / 100-107 and for the bold-brightens-fg promotion.
+    */
+    {
+	static const struct { unsigned short r, g, b; } brightDefaults[8] = {
+	    {0x8080, 0x8080, 0x8080},	/*  9: bright black  */
+	    {0xffff, 0x0000, 0x0000},	/* 10: bright red    */
+	    {0x0000, 0xffff, 0x0000},	/* 11: bright green  */
+	    {0xffff, 0xffff, 0x0000},	/* 12: bright yellow */
+	    {0x5c5c, 0x5c5c, 0xffff},	/* 13: bright blue   */
+	    {0xffff, 0x0000, 0xffff},	/* 14: bright magenta*/
+	    {0x0000, 0xffff, 0xffff},	/* 15: bright cyan   */
+	    {0xffff, 0xffff, 0xffff},	/* 16: bright white  */
+	};
+	int b;
+	for (b = 0; b < 8; b++) {
+	    td->colorPairs[9 + b].fg.red   = brightDefaults[b].r;
+	    td->colorPairs[9 + b].fg.green = brightDefaults[b].g;
+	    td->colorPairs[9 + b].fg.blue  = brightDefaults[b].b;
+	    td->colorPairs[9 + b].bg.red   = brightDefaults[b].r;
+	    td->colorPairs[9 + b].bg.green = brightDefaults[b].g;
+	    td->colorPairs[9 + b].bg.blue  = brightDefaults[b].b;
+	}
+    }
     return;
 }
 
@@ -137,7 +166,7 @@ _DtTermColorDestroy(Widget w)
      * uninitialized so that it will not kill things if it is
      * called more than once on destroy...
      */
-    for (i = 0; i < 8; i++) {
+    for (i = 0; i < 17; i++) {
 	if (td->colorPairs[i].initialized) {
 	    j = 0;
 	    if (!td->colorPairs[i].fgCommon) {

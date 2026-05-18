@@ -1020,12 +1020,26 @@ _DtTermVideoEnhancement(Widget w,int value)
 	      break;
 	case 39:
 	      td->enhFgColorState = ENH_MAKE_DEFAULT();
-	      (void)_DtTermPrimBufferSetEnhancement(tpd->termBuffer, 
+	      (void)_DtTermPrimBufferSetEnhancement(tpd->termBuffer,
 		      tpd->topRow + tpd->cursorRow, tpd->cursorColumn,
 		      enhFgColor, td->enhFgColorState);
 	      return;
 	      break;
 
+	case 90:
+	case 91:
+	case 92:
+	case 93:
+	case 94:
+	case 95:
+	case 96:
+	case 97:
+	      td->enhFgColorState = ENH_MAKE_INDEXED(value - 90 + 9);
+	      (void)_DtTermPrimBufferSetEnhancement(tpd->termBuffer,
+		      tpd->topRow + tpd->cursorRow, tpd->cursorColumn,
+		      enhFgColor, td->enhFgColorState);
+	      return;
+	      break;
 	case 40:
 	case 41:
 	case 42:
@@ -1042,12 +1056,26 @@ _DtTermVideoEnhancement(Widget w,int value)
 	      break;
 	case 49:
 	      td->enhBgColorState = ENH_MAKE_DEFAULT();
-	      (void)_DtTermPrimBufferSetEnhancement(tpd->termBuffer, 
+	      (void)_DtTermPrimBufferSetEnhancement(tpd->termBuffer,
 		      tpd->topRow + tpd->cursorRow, tpd->cursorColumn,
 		      enhBgColor, td->enhBgColorState);
 	      return;
 	      break;
 
+	case 100:
+	case 101:
+	case 102:
+	case 103:
+	case 104:
+	case 105:
+	case 106:
+	case 107:
+	      td->enhBgColorState = ENH_MAKE_INDEXED(value - 100 + 9);
+	      (void)_DtTermPrimBufferSetEnhancement(tpd->termBuffer,
+		      tpd->topRow + tpd->cursorRow, tpd->cursorColumn,
+		      enhBgColor, td->enhBgColorState);
+	      return;
+	      break;
         default: break;
             /* fprintf(stderr,"wrong param in SGR esc seq\n") ;*/
       }

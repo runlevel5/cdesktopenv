@@ -42,10 +42,10 @@
 ** Resolve an encoded enhValue colour to a slot in td->colorPairs[].
 **
 ** The colour fields carry a packed (mode, payload) value.  The parser
-** currently produces ENH_MODE_DEFAULT (-> slot 0, the widget's default
-** fg / bg) and ENH_MODE_INDEXED with payload 1..8 (-> slots 1..8, the 8 ANSI
-** colours).  Anything else is clamped to slot 0 so the resolver stays in
-** range while the palette is extended later.
+** produces ENH_MODE_DEFAULT (-> slot 0, the widget's default fg / bg) and
+** ENH_MODE_INDEXED with payload 1..16 (-> slots 1..8 for the 8 ANSI colours,
+** slots 9..16 for the 8 bright variants).  Anything else is clamped to
+** slot 0 so the resolver stays in range while the palette is extended later.
 */
 static int
 _DtTermResolveColorPair(enhValue v)
@@ -57,7 +57,7 @@ _DtTermResolveColorPair(enhValue v)
     }
     if (ENH_COLOR_MODE(v) == ENH_MODE_INDEXED) {
 	payload = ENH_COLOR_PAYLOAD(v);
-	if (payload <= 8) {
+	if (payload <= 16) {
 	    return (int) payload;
 	}
     }
@@ -73,6 +73,20 @@ _DtTermEnhProc(Widget w, enhValues values, TermEnhInfo info)
     DtTermData td = tw->vt.td;
     int fgPair = _DtTermResolveColorPair(ourFgEnh);
     int bgPair = _DtTermResolveColorPair(ourBgEnh);
+
+    /*
+    ** xterm convention: a bold ANSI foreground (INDEXED 1..8) renders with
+    ** the bright variant (slots 9..16).  Apply this only when the source
+    ** value is genuinely INDEXED 1..8 so DEFAULT and future direct-RGB
+    ** values pass through unchanged.
+    */
+    if (IS_BOLD(ourVideo) &&
+	ENH_COLOR_MODE(ourFgEnh) == ENH_MODE_INDEXED) {
+	unsigned int p = ENH_COLOR_PAYLOAD(ourFgEnh);
+	if (p >= 1 && p <= 8) {
+	    fgPair = (int) (p + 8);
+	}
+    }
 
     /* initialize the color pair if we need to... */
     if (!td->colorPairs[fgPair].initialized) {

@@ -123,7 +123,7 @@ typedef struct _DtTermDataRec {
     /*********************************************************************
      * Colors
      */
-    VtColorPairRec colorPairs[9];	/* color pair pixels		*/
+    VtColorPairRec colorPairs[17];	/* default + 16 ANSI colour slots */
 
     /*********************************************************************
      * User (and other) Function keys
