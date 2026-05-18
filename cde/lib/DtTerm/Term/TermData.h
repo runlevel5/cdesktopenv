@@ -34,6 +34,7 @@
 #ifndef	_Dt_TermData_h
 #define	_Dt_TermData_h
 
+#include <stdint.h>
 #include "TermPrimData.h"
 #include "TermPrimRender.h"
 #include "TermFunctionKey.h"
@@ -65,8 +66,8 @@ typedef struct _VtsaveCursor {
     short cursorColumn;   /* to save current column */
     char enhFieldState; /* to save current Char Erase state   */
     char enhVideoState; /* to save current video enhancements */
-    char enhFgColorState;   /* index into color pair for fg text color*/
-    char enhBgColorState;   /* index into color pair for bg text color */
+    uint32_t enhFgColorState;   /* packed (mode, payload) fg colour */
+    uint32_t enhBgColorState;   /* packed (mode, payload) bg colour */
     Boolean originMode;  /* to save current origin mode        */
     Boolean wrapMode;    /* to save current Wrap mode    */
     int *GL;			/* left graphics character set	*/
@@ -144,8 +145,8 @@ typedef struct _DtTermDataRec {
     int terminalId;          /* 220, 100, 101, 102  */
     char enhVideoState;		/* current video enhancement state	*/
     char enhFieldState;		/* current field enhancement state	*/
-    char enhFgColorState;	/* current fg color enhancement state	*/
-    char enhBgColorState;	/* current bg color enhancement state	*/
+    uint32_t enhFgColorState;	/* packed (mode, payload) fg colour     */
+    uint32_t enhBgColorState;	/* packed (mode, payload) bg colour     */
     char enhFontState;		/* current font enhancement state	*/
 
     VtSaveCursorRec saveCursor ;

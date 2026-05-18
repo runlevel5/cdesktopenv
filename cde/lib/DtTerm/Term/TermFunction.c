@@ -661,13 +661,13 @@ _DtTermFuncSoftReset(Widget w, int count, FunctionSource functionSource)
 	      td->enhFieldState);
 
     /* foreground... */
-    td->enhFgColorState = 0;
+    td->enhFgColorState = ENH_MAKE_DEFAULT();
     (void)_DtTermPrimBufferSetEnhancement(tpd->termBuffer,
               tpd->topRow + tpd->cursorRow, tpd->cursorColumn, enhFgColor,
 	      td->enhFgColorState);
 
     /* background... */
-    td->enhBgColorState = 0;
+    td->enhBgColorState = ENH_MAKE_DEFAULT();
     (void)_DtTermPrimBufferSetEnhancement(tpd->termBuffer,
               tpd->topRow + tpd->cursorRow, tpd->cursorColumn, enhBgColor,
 	      td->enhBgColorState);
@@ -952,11 +952,11 @@ _DtTermVideoEnhancement(Widget w,int value)
               td->enhVideoState &= ~VIDEO_MASK ;
 
               /* reset color */
-	      td->enhFgColorState = 0;
+	      td->enhFgColorState = ENH_MAKE_DEFAULT();
 	      (void)_DtTermPrimBufferSetEnhancement(tpd->termBuffer, 
 		      tpd->topRow + tpd->cursorRow, tpd->cursorColumn,
 		      enhFgColor, td->enhFgColorState);
-	      td->enhBgColorState = 0;
+	      td->enhBgColorState = ENH_MAKE_DEFAULT();
 	      (void)_DtTermPrimBufferSetEnhancement(tpd->termBuffer, 
 		      tpd->topRow + tpd->cursorRow, tpd->cursorColumn,
 		      enhBgColor, td->enhBgColorState);
@@ -1012,14 +1012,14 @@ _DtTermVideoEnhancement(Widget w,int value)
 	case 35:
 	case 36:
 	case 37:
-	      td->enhFgColorState = value - 30 + 1;
+	      td->enhFgColorState = ENH_MAKE_INDEXED(value - 30 + 1);
 	      (void)_DtTermPrimBufferSetEnhancement(tpd->termBuffer, 
 		      tpd->topRow + tpd->cursorRow, tpd->cursorColumn,
 		      enhFgColor, td->enhFgColorState);
 	      return;
 	      break;
 	case 39:
-	      td->enhFgColorState = 0;
+	      td->enhFgColorState = ENH_MAKE_DEFAULT();
 	      (void)_DtTermPrimBufferSetEnhancement(tpd->termBuffer, 
 		      tpd->topRow + tpd->cursorRow, tpd->cursorColumn,
 		      enhFgColor, td->enhFgColorState);
@@ -1034,14 +1034,14 @@ _DtTermVideoEnhancement(Widget w,int value)
 	case 45:
 	case 46:
 	case 47:
-	      td->enhBgColorState = value - 40 + 1;
+	      td->enhBgColorState = ENH_MAKE_INDEXED(value - 40 + 1);
 	      (void)_DtTermPrimBufferSetEnhancement(tpd->termBuffer, 
 		      tpd->topRow + tpd->cursorRow, tpd->cursorColumn,
 		      enhBgColor, td->enhBgColorState);
 	      return;
 	      break;
 	case 49:
-	      td->enhBgColorState = 0;
+	      td->enhBgColorState = ENH_MAKE_DEFAULT();
 	      (void)_DtTermPrimBufferSetEnhancement(tpd->termBuffer, 
 		      tpd->topRow + tpd->cursorRow, tpd->cursorColumn,
 		      enhBgColor, td->enhBgColorState);

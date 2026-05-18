@@ -33,10 +33,37 @@
 #include "TermColor.h"
 #include "TermBuffer.h"
 
-#define	ourColorPair	(values[(int) enhFgColor])
-#define	ourBgColor	(values[(int) enhBgColor])
+#define	ourFgEnh	(values[(int) enhFgColor])
+#define	ourBgEnh	(values[(int) enhBgColor])
 #define	ourFont		(values[(int) enhFont])
 #define	ourVideo	(values[(int) enhVideo])
+
+/*
+** Resolve an encoded enhValue colour to a slot in td->colorPairs[].
+**
+** The colour fields carry a packed (mode, payload) value.  The parser
+** currently produces ENH_MODE_DEFAULT (-> slot 0, the widget's default
+** fg / bg) and ENH_MODE_INDEXED with payload 1..8 (-> slots 1..8, the 8 ANSI
+** colours).  Anything else is clamped to slot 0 so the resolver stays in
+** range while the palette is extended later.
+*/
+static int
+_DtTermResolveColorPair(enhValue v)
+{
+    unsigned int payload;
+
+    if (ENH_IS_DEFAULT(v)) {
+	return 0;
+    }
+    if (ENH_COLOR_MODE(v) == ENH_MODE_INDEXED) {
+	payload = ENH_COLOR_PAYLOAD(v);
+	if (payload <= 8) {
+	    return (int) payload;
+	}
+    }
+    /* mode not yet supported by the resolver -- fall back to default */
+    return 0;
+}
 
 void
 _DtTermEnhProc(Widget w, enhValues values, TermEnhInfo info)
@@ -44,28 +71,30 @@ _DtTermEnhProc(Widget w, enhValues values, TermEnhInfo info)
 
     DtTermWidget tw = (DtTermWidget) w;
     DtTermData td = tw->vt.td;
+    int fgPair = _DtTermResolveColorPair(ourFgEnh);
+    int bgPair = _DtTermResolveColorPair(ourBgEnh);
 
     /* initialize the color pair if we need to... */
-    if (!td->colorPairs[ourColorPair].initialized) {
+    if (!td->colorPairs[fgPair].initialized) {
 	(void) _DtTermColorInitializeColorPair(w,
-		&td->colorPairs[ourColorPair]);
+		&td->colorPairs[fgPair]);
     }
-    if (!td->colorPairs[ourBgColor].initialized) {
+    if (!td->colorPairs[bgPair].initialized) {
 	(void) _DtTermColorInitializeColorPair(w,
-		&td->colorPairs[ourBgColor]);
+		&td->colorPairs[bgPair]);
     }
 
     /* take care of video enhancements...
      */
     /* half bright (picks fg color) ... */
-    if (IS_HALF_BRIGHT(ourVideo) && td->colorPairs[ourColorPair].hbValid) {
-	info->fg = td->colorPairs[ourColorPair].hb.pixel;
+    if (IS_HALF_BRIGHT(ourVideo) && td->colorPairs[fgPair].hbValid) {
+	info->fg = td->colorPairs[fgPair].hb.pixel;
     } else {
-	info->fg = td->colorPairs[ourColorPair].fg.pixel;
+	info->fg = td->colorPairs[fgPair].fg.pixel;
     }
 
     /* background is always background... */
-    info->bg = td->colorPairs[ourBgColor].bg.pixel;
+    info->bg = td->colorPairs[bgPair].bg.pixel;
 
     /* if inverse video, swap fg and bg... */
     if (IS_INVERSE(ourVideo)) {

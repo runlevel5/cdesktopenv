@@ -62,7 +62,12 @@
 #define FIELD_END       3
 #define FIELD_MASK      3
 
-#define COLOR_MASK      0x0F
+/*
+** COLOR_MASK formerly clamped the 4-bit colour bit-field to 0-15.  The
+** colour fields are now full 32-bit values carrying a packed (mode, payload)
+** encoding, so the mask preserves every bit.
+*/
+#define COLOR_MASK      0xFFFFFFFFU
 
 /* 
 ** Defines for font ID
