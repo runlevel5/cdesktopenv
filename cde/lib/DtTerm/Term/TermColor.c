@@ -135,6 +135,165 @@ _DtTermResolve256Pixel(Widget w, unsigned int xcol)
     return td->colorPairs[0].fg.pixel;
 }
 
+/*
+** Position of the lowest set bit in mask (i.e. ffs(mask) - 1), or 0 if mask
+** is empty.  Used to derive the shift that places an integer channel value
+** into the right bits of a Pixel.
+*/
+static int
+_DtTermVisualLowBit(unsigned long mask)
+{
+    int n = 0;
+
+    if (mask == 0) {
+	return 0;
+    }
+    while ((mask & 1UL) == 0UL) {
+	mask >>= 1;
+	n++;
+    }
+    return n;
+}
+
+/*
+** popcount on unsigned long.  Used to derive the bit-depth of each channel
+** from the visual's RGB masks.
+*/
+static int
+_DtTermVisualPopCount(unsigned long mask)
+{
+    int n = 0;
+
+    while (mask) {
+	n += (int) (mask & 1UL);
+	mask >>= 1;
+    }
+    return n;
+}
+
+/*
+** Detect the screen's default visual and cache its mask / shift / bit-count
+** triple on td.  Called once from _DtTermColorInit.  For non-TrueColor /
+** non-DirectColor visuals the cache is left at its zero-initialised state
+** (isTrueColor == False), and the RGB resolver falls back to nearest-of-16.
+*/
+static void
+_DtTermDetectVisual(Widget w)
+{
+    DtTermWidget tw = (DtTermWidget) w;
+    DtTermData td = tw->vt.td;
+    Visual *vis;
+
+    td->isTrueColor = False;
+
+    vis = DefaultVisualOfScreen(XtScreen(w));
+    if (vis == NULL) {
+	return;
+    }
+    if (vis->class != TrueColor && vis->class != DirectColor) {
+	return;
+    }
+
+    td->isTrueColor = True;
+    td->redMask    = vis->red_mask;
+    td->greenMask  = vis->green_mask;
+    td->blueMask   = vis->blue_mask;
+    td->redShift   = _DtTermVisualLowBit(td->redMask);
+    td->greenShift = _DtTermVisualLowBit(td->greenMask);
+    td->blueShift  = _DtTermVisualLowBit(td->blueMask);
+    td->redBits    = _DtTermVisualPopCount(td->redMask);
+    td->greenBits  = _DtTermVisualPopCount(td->greenMask);
+    td->blueBits   = _DtTermVisualPopCount(td->blueMask);
+}
+
+/*
+** Scale an 8-bit channel into the visual's `bits`-wide mask position.
+** Handles both narrower (5/6-bit) and wider (10-bit+) channels.
+*/
+static Pixel
+_DtTermScaleChannel(unsigned int v8, int bits, int shift)
+{
+    Pixel p;
+
+    if (bits >= 8) {
+	p = ((Pixel) v8) << (bits - 8);
+    } else {
+	p = ((Pixel) v8) >> (8 - bits);
+    }
+    return p << shift;
+}
+
+/*
+** Euclidean nearest match against the 16 indexed-colour default RGB triples.
+** Returns a colorPairs[] slot index in 1..16.  This mirrors the brightDefaults
+** seeded in _DtTermColorInit so the fallback line up with what the user sees
+** for plain SGR 30-37 / 90-97.
+*/
+static int
+_DtTermNearestOf16(unsigned int r, unsigned int g, unsigned int b)
+{
+    static const struct { unsigned char r, g, b; } pal16[16] = {
+	{0x00, 0x00, 0x00},	/*  1: black           */
+	{0xff, 0x00, 0x00},	/*  2: red             */
+	{0x00, 0xff, 0x00},	/*  3: green           */
+	{0xff, 0xff, 0x00},	/*  4: yellow          */
+	{0x00, 0x00, 0xff},	/*  5: blue            */
+	{0xff, 0x00, 0xff},	/*  6: magenta         */
+	{0x00, 0xff, 0xff},	/*  7: cyan            */
+	{0xff, 0xff, 0xff},	/*  8: white           */
+	{0x80, 0x80, 0x80},	/*  9: bright black    */
+	{0xff, 0x00, 0x00},	/* 10: bright red      */
+	{0x00, 0xff, 0x00},	/* 11: bright green    */
+	{0xff, 0xff, 0x00},	/* 12: bright yellow   */
+	{0x5c, 0x5c, 0xff},	/* 13: bright blue     */
+	{0xff, 0x00, 0xff},	/* 14: bright magenta  */
+	{0x00, 0xff, 0xff},	/* 15: bright cyan     */
+	{0xff, 0xff, 0xff},	/* 16: bright white    */
+    };
+    int best = 0;
+    long bestDist = -1;
+    int i;
+
+    for (i = 0; i < 16; i++) {
+	long dr = (long) r - (long) pal16[i].r;
+	long dg = (long) g - (long) pal16[i].g;
+	long db = (long) b - (long) pal16[i].b;
+	long d  = dr * dr + dg * dg + db * db;
+	if (bestDist < 0 || d < bestDist) {
+	    bestDist = d;
+	    best = i;
+	}
+    }
+    return best + 1;		/* colorPairs[] slot 1..16  */
+}
+
+Pixel
+_DtTermResolveRGBPixel(Widget w,
+		       unsigned int r,
+		       unsigned int g,
+		       unsigned int b,
+		       Boolean isBg)
+{
+    DtTermWidget tw = (DtTermWidget) w;
+    DtTermData td = tw->vt.td;
+    int slot;
+    Pixel pr, pg, pb;
+
+    if (td->isTrueColor) {
+	pr = _DtTermScaleChannel(r & 0xff, td->redBits,   td->redShift)   & td->redMask;
+	pg = _DtTermScaleChannel(g & 0xff, td->greenBits, td->greenShift) & td->greenMask;
+	pb = _DtTermScaleChannel(b & 0xff, td->blueBits,  td->blueShift)  & td->blueMask;
+	return pr | pg | pb;
+    }
+
+    /* Non-TrueColor fallback: round to nearest of 16 indexed defaults. */
+    slot = _DtTermNearestOf16(r, g, b);
+    if (!td->colorPairs[slot].initialized) {
+	(void) _DtTermColorInitializeColorPair(w, &td->colorPairs[slot]);
+    }
+    return isBg ? td->colorPairs[slot].bg.pixel : td->colorPairs[slot].fg.pixel;
+}
+
 void
 _DtTermColorInit(Widget w)
 {
@@ -142,6 +301,11 @@ _DtTermColorInit(Widget w)
     DtTermData td = tw->vt.td;
     int i;
 
+    /*
+    ** Cache the screen's visual class / masks once per widget.  Required for
+    ** the ENH_MODE_RGB rendering path; harmless on the legacy code path.
+    */
+    _DtTermDetectVisual(w);
     if (isDebugFSet('C', 0)) {
 #ifdef	BBA
 #pragma	BBA_IGNORE

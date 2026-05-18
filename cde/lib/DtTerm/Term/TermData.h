@@ -134,6 +134,25 @@ typedef struct _DtTermDataRec {
     Pixel    pal256[256];
     Boolean  pal256Allocated[256];
 
+    /*
+    ** Visual detection cache, populated once at widget colour-init time
+    ** by _DtTermDetectVisual.  isTrueColor is True for TrueColor and
+    ** DirectColor visuals -- the two classes where a Pixel value can be
+    ** synthesised directly from RGB components using mask arithmetic.
+    ** The shift / bit-count triples describe how to project an 8-bit
+    ** channel into the visual's mask position.
+    */
+    Boolean       isTrueColor;
+    unsigned long redMask;
+    unsigned long greenMask;
+    unsigned long blueMask;
+    int           redShift;
+    int           greenShift;
+    int           blueShift;
+    int           redBits;
+    int           greenBits;
+    int           blueBits;
+
     /*********************************************************************
      * User (and other) Function keys
      */

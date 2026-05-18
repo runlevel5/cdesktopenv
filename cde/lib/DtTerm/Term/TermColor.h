@@ -46,5 +46,20 @@ void _DtTermColorInitializeColorPair(Widget w, VtColorPair colorPair);
 */
 Pixel _DtTermResolve256Pixel(Widget w, unsigned int xcol);
 
+/*
+** Resolve a 24-bit RGB triple (each channel 0..255) to a Pixel.  On
+** TrueColor / DirectColor visuals the Pixel is synthesised directly
+** from the visual's mask / shift / bit-count metadata; no XAllocColor
+** round-trip happens and there is nothing to free.  On other visuals
+** the request is rounded to the nearest of the 16 indexed colours and
+** routed through the colorPairs[] palette.  `isBg` selects the fg or
+** bg pixel of the chosen colorPair on the fallback path.
+*/
+Pixel _DtTermResolveRGBPixel(Widget w,
+			     unsigned int r,
+			     unsigned int g,
+			     unsigned int b,
+			     Boolean isBg);
+
 #endif	/* _Dt_TermColor_h */
 /* DON'T ADD ANYTHING AFTER THIS #endif... */

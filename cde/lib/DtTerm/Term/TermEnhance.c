@@ -79,6 +79,14 @@ _DtTermResolveFgPixel(Widget w, enhValue v, unsigned int videoFlags)
 	    return _DtTermResolve256Pixel(w, (unsigned int) (slot - 1));
 	}
     }
+    if (ENH_COLOR_MODE(v) == ENH_MODE_RGB) {
+	unsigned int rgb = ENH_COLOR_PAYLOAD(v);
+	return _DtTermResolveRGBPixel(w,
+		(rgb >> 16) & 0xffU,
+		(rgb >>  8) & 0xffU,
+		 rgb        & 0xffU,
+		False);
+    }
     /* DEFAULT or unsupported mode -> widget default fg */
     if (!td->colorPairs[0].initialized) {
 	(void) _DtTermColorInitializeColorPair(w, &td->colorPairs[0]);
@@ -107,6 +115,14 @@ _DtTermResolveBgPixel(Widget w, enhValue v)
 	if (slot >= 17 && slot <= 256) {
 	    return _DtTermResolve256Pixel(w, (unsigned int) (slot - 1));
 	}
+    }
+    if (ENH_COLOR_MODE(v) == ENH_MODE_RGB) {
+	unsigned int rgb = ENH_COLOR_PAYLOAD(v);
+	return _DtTermResolveRGBPixel(w,
+		(rgb >> 16) & 0xffU,
+		(rgb >>  8) & 0xffU,
+		 rgb        & 0xffU,
+		True);
     }
     if (!td->colorPairs[0].initialized) {
 	(void) _DtTermColorInitializeColorPair(w, &td->colorPairs[0]);
