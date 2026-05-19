@@ -33,12 +33,14 @@
 #include <wctype.h>
 
 #include "TermHeader.h"
+#include <string.h>	/* strtok_r */
 #include "TermPrimDebug.h"
 #include "TermPrimP.h"
 #include "TermPrimI.h"
 #include "TermP.h"
 #include "TermPrimData.h"
 #include "TermData.h"
+#include "TermColor.h"	/* _DtTermColorInitializeColorPair, _DtTermResolve256Pixel */
 #include "TermPrimBuffer.h"
 #include "TermPrimParserP.h"
 #include "TermFunction.h"
@@ -1006,6 +1008,115 @@ _DtTermDeviceAttributes(Widget w)    /* DA CSIpc */
 }
 
 /*
+** OSC 4 -- palette query / set.  Payload is one or more `N;spec` pairs
+** separated by ';'.  spec may be '?' (query) or any X colour string.
+**
+** For N 0..15 we update the persistent colorPairs[N+1].{fg,bg} so future
+** SGR 30-37 / 90-97 references see the new colour.  For N 16..255 the lazy
+** pal256 cache is overwritten and re-allocated on next use.
+*/
+static void
+_DtTermOscPalette(Widget w, char *payload)
+{
+    DtTermWidget tw  = (DtTermWidget) w;
+    DtTermData   td  = tw->vt.td;
+    Display     *dpy = XtDisplay(w);
+    Colormap     cm  = w->core.colormap;
+
+    if (payload == NULL || *payload == '\0') return;
+
+    /* Walk the ';'-separated pairs in place using strtok.  payload is the
+       per-widget stringParms buffer so it's writable. */
+    char *save = NULL;
+    char *idxTok = strtok_r(payload, ";", &save);
+    while (idxTok) {
+	char *specTok = strtok_r(NULL, ";", &save);
+	if (!specTok) break;
+
+	int n = atoi(idxTok);
+	if (n < 0 || n > 255) {
+	    idxTok = strtok_r(NULL, ";", &save);
+	    continue;
+	}
+
+	if (specTok[0] == '?' && specTok[1] == '\0') {
+	    /* Query: respond with the current colour as 16-bit rgb. */
+	    XColor xc;
+	    char reply[80];
+	    Pixel cur = 0;
+	    int known = 0;
+
+	    if (n <= 15) {
+		int slot = n + 1;
+		if (!td->colorPairs[slot].initialized) {
+		    _DtTermColorInitializeColorPair(w, &td->colorPairs[slot]);
+		}
+		cur = td->colorPairs[slot].fg.pixel;
+		known = 1;
+	    } else if (td->pal256Allocated[n]) {
+		cur = td->pal256[n];
+		known = 1;
+	    } else {
+		/* Not yet allocated -- synthesise the canonical xterm RGB. */
+		unsigned short r, g, b;
+		/* Force allocation by calling the resolver. */
+		cur = _DtTermResolve256Pixel(w, (unsigned int) n);
+		known = 1;
+	    }
+	    if (known) {
+		xc.pixel = cur;
+		XQueryColor(dpy, cm, &xc);
+		(void) snprintf(reply, sizeof(reply),
+			"\033]4;%d;rgb:%04x/%04x/%04x\033\\",
+			n, xc.red, xc.green, xc.blue);
+		sendEscSequence(w, reply);
+	    }
+	} else {
+	    /* Set: parse + allocate, replace the slot's pixel. */
+	    XColor xc;
+	    if (!XParseColor(dpy, cm, specTok, &xc)) {
+		idxTok = strtok_r(NULL, ";", &save);
+		continue;
+	    }
+	    if (!XAllocColor(dpy, cm, &xc)) {
+		idxTok = strtok_r(NULL, ";", &save);
+		continue;
+	    }
+	    if (n <= 15) {
+		int slot = n + 1;
+		/* Drop the old pixel if we owned it. */
+		if (td->colorPairs[slot].initialized &&
+			!td->colorPairs[slot].fgCommon) {
+		    Pixel old = td->colorPairs[slot].fg.pixel;
+		    XFreeColors(dpy, cm, &old, 1, 0);
+		}
+		td->colorPairs[slot].fg = xc;
+		td->colorPairs[slot].bg = xc;
+		td->colorPairs[slot].fgCommon = False;
+		td->colorPairs[slot].bgCommon = False;
+		td->colorPairs[slot].initialized = True;
+	    } else {
+		if (td->pal256Allocated[n]) {
+		    Pixel old = td->pal256[n];
+		    XFreeColors(dpy, cm, &old, 1, 0);
+		}
+		td->pal256[n] = xc.pixel;
+		td->pal256Allocated[n] = True;
+	    }
+	}
+
+	idxTok = strtok_r(NULL, ";", &save);
+    }
+
+    /* Force a redraw of the visible content so existing cells pick up the
+       new palette.  XClearArea with exposures = True asks the widget for
+       a fresh paint. */
+    if (XtIsRealized(w)) {
+	XClearArea(dpy, XtWindow(w), 0, 0, 0, 0, True);
+    }
+}
+
+/*
 ** Helper for OSC 10 / 11 / 12: parse a colour spec or '?' query.  Returns 1
 ** if the payload was an in-bounds set or query handled here, 0 otherwise.
 */
@@ -1156,6 +1267,10 @@ _DtTermChangeTextParam(Widget w)  /* xterm  CSIp;pcCtrl-G  */
 		    strlen((char *) context->stringParms[0].str) + 1);
             (void) strcpy(tw->term.subprocessCWD,
 		    (char *) context->stringParms[0].str);
+            break;
+
+    case 4: /* set / query palette entry */
+            _DtTermOscPalette(w, (char *) context->stringParms[0].str);
             break;
 
     case 10: /* set / query default foreground colour */
