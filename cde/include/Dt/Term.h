@@ -580,6 +580,58 @@ extern "C" {
 #define	DtNappKeypadDefault              "appKeypadDefault"
 #endif
 
+#ifndef DtNcolor0
+#define	DtNcolor0			"color0"
+#endif
+#ifndef DtNcolor1
+#define	DtNcolor1			"color1"
+#endif
+#ifndef DtNcolor2
+#define	DtNcolor2			"color2"
+#endif
+#ifndef DtNcolor3
+#define	DtNcolor3			"color3"
+#endif
+#ifndef DtNcolor4
+#define	DtNcolor4			"color4"
+#endif
+#ifndef DtNcolor5
+#define	DtNcolor5			"color5"
+#endif
+#ifndef DtNcolor6
+#define	DtNcolor6			"color6"
+#endif
+#ifndef DtNcolor7
+#define	DtNcolor7			"color7"
+#endif
+#ifndef DtNcolor8
+#define	DtNcolor8			"color8"
+#endif
+#ifndef DtNcolor9
+#define	DtNcolor9			"color9"
+#endif
+#ifndef DtNcolor10
+#define	DtNcolor10			"color10"
+#endif
+#ifndef DtNcolor11
+#define	DtNcolor11			"color11"
+#endif
+#ifndef DtNcolor12
+#define	DtNcolor12			"color12"
+#endif
+#ifndef DtNcolor13
+#define	DtNcolor13			"color13"
+#endif
+#ifndef DtNcolor14
+#define	DtNcolor14			"color14"
+#endif
+#ifndef DtNcolor15
+#define	DtNcolor15			"color15"
+#endif
+#ifndef DtNboldColors
+#define	DtNboldColors			"boldColors"
+#endif
+
 #ifndef DtCFunctionKeyExecuteProc
 #define	DtCFunctionKeyExecuteProc	"FunctionKeyExecuteProc"
 #endif
@@ -606,6 +658,57 @@ extern "C" {
 #endif
 #ifndef DtCAppKeypadDefault
 #define	DtCAppKeypadDefault             "AppKeypadDefault"
+#endif
+#ifndef DtCColor0
+#define	DtCColor0			"Color0"
+#endif
+#ifndef DtCColor1
+#define	DtCColor1			"Color1"
+#endif
+#ifndef DtCColor2
+#define	DtCColor2			"Color2"
+#endif
+#ifndef DtCColor3
+#define	DtCColor3			"Color3"
+#endif
+#ifndef DtCColor4
+#define	DtCColor4			"Color4"
+#endif
+#ifndef DtCColor5
+#define	DtCColor5			"Color5"
+#endif
+#ifndef DtCColor6
+#define	DtCColor6			"Color6"
+#endif
+#ifndef DtCColor7
+#define	DtCColor7			"Color7"
+#endif
+#ifndef DtCColor8
+#define	DtCColor8			"Color8"
+#endif
+#ifndef DtCColor9
+#define	DtCColor9			"Color9"
+#endif
+#ifndef DtCColor10
+#define	DtCColor10			"Color10"
+#endif
+#ifndef DtCColor11
+#define	DtCColor11			"Color11"
+#endif
+#ifndef DtCColor12
+#define	DtCColor12			"Color12"
+#endif
+#ifndef DtCColor13
+#define	DtCColor13			"Color13"
+#endif
+#ifndef DtCColor14
+#define	DtCColor14			"Color14"
+#endif
+#ifndef DtCColor15
+#define	DtCColor15			"Color15"
+#endif
+#ifndef DtCBoldColors
+#define	DtCBoldColors			"BoldColors"
 #endif
 
 

@@ -340,68 +340,40 @@ _DtTermColorInit(Widget w)
     (void) _DtTermColorInitializeColorPair(w, &td->colorPairs[0]);
 
     /*
-    ** SGR 30-37 / 40-47 ANSI defaults.  Channels are dimmed slightly below
-    ** full intensity so the SGR 90-97 / 100-107 bright variants (and the
-    ** xterm bold-brightens-fg promotion) render visibly brighter.  The
-    ** RGB values mirror xterm's 'colour3' family: red3, green3, etc.
-    **
-    **   slot 1: black            #000000
-    **   slot 2: red       red3   #cd0000
-    **   slot 3: green     green3 #00cd00
-    **   slot 4: yellow    yellow3 #cdcd00
-    **   slot 5: blue      blue3  #0000ee
-    **   slot 6: magenta   magenta3 #cd00cd
-    **   slot 7: cyan      cyan3  #00cdcd
-    **   slot 8: white     gray90 #e5e5e5
+    ** Install the resource-resolved Pixels for the 16 ANSI palette slots.
+    ** vt.colorN was converted from its XtRString default (or a user
+    ** override) by Xt's StringToPixel converter when the widget was
+    ** initialised, so by the time we run td->vt.colorN is a usable Pixel
+    ** on the widget's colormap.  We set fgCommon = bgCommon = True so the
+    ** lazy _DtTermColorInitializeColorPair() path skips XAllocColor (the
+    ** resource subsystem already owns these pixels) and instead uses
+    ** XQueryColor to derive .red / .green / .blue for the half-bright
+    ** derivative.
     */
     {
-	static const struct { unsigned short r, g, b; } normalDefaults[8] = {
-	    {0x0000, 0x0000, 0x0000},	/* 1: black   */
-	    {0xcdcd, 0x0000, 0x0000},	/* 2: red     */
-	    {0x0000, 0xcdcd, 0x0000},	/* 3: green   */
-	    {0xcdcd, 0xcdcd, 0x0000},	/* 4: yellow  */
-	    {0x0000, 0x0000, 0xeeee},	/* 5: blue    */
-	    {0xcdcd, 0x0000, 0xcdcd},	/* 6: magenta */
-	    {0x0000, 0xcdcd, 0xcdcd},	/* 7: cyan    */
-	    {0xe5e5, 0xe5e5, 0xe5e5},	/* 8: white   */
-	};
+	Pixel *resPixels[16];
 	int n;
-	for (n = 0; n < 8; n++) {
-	    td->colorPairs[1 + n].fg.red   = normalDefaults[n].r;
-	    td->colorPairs[1 + n].fg.green = normalDefaults[n].g;
-	    td->colorPairs[1 + n].fg.blue  = normalDefaults[n].b;
-	    td->colorPairs[1 + n].bg.red   = normalDefaults[n].r;
-	    td->colorPairs[1 + n].bg.green = normalDefaults[n].g;
-	    td->colorPairs[1 + n].bg.blue  = normalDefaults[n].b;
-	}
-    }
-
-    /*
-    ** xterm-style bright colour defaults for slots 9..16.  RGB values are
-    ** stored as 16-bit X11 channels; the high byte holds the 8-bit value
-    ** and the low byte mirrors it (0x80 -> 0x8080) so the channel scales
-    ** linearly across the 16-bit range.  These come into play for SGR
-    ** 90-97 / 100-107 and for the bold-brightens-fg promotion.
-    */
-    {
-	static const struct { unsigned short r, g, b; } brightDefaults[8] = {
-	    {0x8080, 0x8080, 0x8080},	/*  9: bright black  */
-	    {0xffff, 0x0000, 0x0000},	/* 10: bright red    */
-	    {0x0000, 0xffff, 0x0000},	/* 11: bright green  */
-	    {0xffff, 0xffff, 0x0000},	/* 12: bright yellow */
-	    {0x5c5c, 0x5c5c, 0xffff},	/* 13: bright blue   */
-	    {0xffff, 0x0000, 0xffff},	/* 14: bright magenta*/
-	    {0x0000, 0xffff, 0xffff},	/* 15: bright cyan   */
-	    {0xffff, 0xffff, 0xffff},	/* 16: bright white  */
-	};
-	int b;
-	for (b = 0; b < 8; b++) {
-	    td->colorPairs[9 + b].fg.red   = brightDefaults[b].r;
-	    td->colorPairs[9 + b].fg.green = brightDefaults[b].g;
-	    td->colorPairs[9 + b].fg.blue  = brightDefaults[b].b;
-	    td->colorPairs[9 + b].bg.red   = brightDefaults[b].r;
-	    td->colorPairs[9 + b].bg.green = brightDefaults[b].g;
-	    td->colorPairs[9 + b].bg.blue  = brightDefaults[b].b;
+	resPixels[0]  = &tw->vt.color0;
+	resPixels[1]  = &tw->vt.color1;
+	resPixels[2]  = &tw->vt.color2;
+	resPixels[3]  = &tw->vt.color3;
+	resPixels[4]  = &tw->vt.color4;
+	resPixels[5]  = &tw->vt.color5;
+	resPixels[6]  = &tw->vt.color6;
+	resPixels[7]  = &tw->vt.color7;
+	resPixels[8]  = &tw->vt.color8;
+	resPixels[9]  = &tw->vt.color9;
+	resPixels[10] = &tw->vt.color10;
+	resPixels[11] = &tw->vt.color11;
+	resPixels[12] = &tw->vt.color12;
+	resPixels[13] = &tw->vt.color13;
+	resPixels[14] = &tw->vt.color14;
+	resPixels[15] = &tw->vt.color15;
+	for (n = 0; n < 16; n++) {
+	    td->colorPairs[1 + n].fg.pixel  = *resPixels[n];
+	    td->colorPairs[1 + n].bg.pixel  = *resPixels[n];
+	    td->colorPairs[1 + n].fgCommon  = True;
+	    td->colorPairs[1 + n].bgCommon  = True;
 	}
     }
     return;

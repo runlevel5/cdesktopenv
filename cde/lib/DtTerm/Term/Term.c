@@ -166,6 +166,91 @@ static XtResource resources[] =
 	XtOffsetOf(struct _DtTermRec, vt.appKeypadMode),
 	XtRImmediate, (XtPointer) False
     },
+    {
+	DtNcolor0, DtCColor0, XmRPixel, sizeof(Pixel),
+	XtOffsetOf(struct _DtTermRec, vt.color0),
+	XtRString, (XtPointer) "black"
+    },
+    {
+	DtNcolor1, DtCColor1, XmRPixel, sizeof(Pixel),
+	XtOffsetOf(struct _DtTermRec, vt.color1),
+	XtRString, (XtPointer) "red3"
+    },
+    {
+	DtNcolor2, DtCColor2, XmRPixel, sizeof(Pixel),
+	XtOffsetOf(struct _DtTermRec, vt.color2),
+	XtRString, (XtPointer) "green3"
+    },
+    {
+	DtNcolor3, DtCColor3, XmRPixel, sizeof(Pixel),
+	XtOffsetOf(struct _DtTermRec, vt.color3),
+	XtRString, (XtPointer) "yellow3"
+    },
+    {
+	DtNcolor4, DtCColor4, XmRPixel, sizeof(Pixel),
+	XtOffsetOf(struct _DtTermRec, vt.color4),
+	XtRString, (XtPointer) "blue3"
+    },
+    {
+	DtNcolor5, DtCColor5, XmRPixel, sizeof(Pixel),
+	XtOffsetOf(struct _DtTermRec, vt.color5),
+	XtRString, (XtPointer) "magenta3"
+    },
+    {
+	DtNcolor6, DtCColor6, XmRPixel, sizeof(Pixel),
+	XtOffsetOf(struct _DtTermRec, vt.color6),
+	XtRString, (XtPointer) "cyan3"
+    },
+    {
+	DtNcolor7, DtCColor7, XmRPixel, sizeof(Pixel),
+	XtOffsetOf(struct _DtTermRec, vt.color7),
+	XtRString, (XtPointer) "gray90"
+    },
+    {
+	DtNcolor8, DtCColor8, XmRPixel, sizeof(Pixel),
+	XtOffsetOf(struct _DtTermRec, vt.color8),
+	XtRString, (XtPointer) "gray40"
+    },
+    {
+	DtNcolor9, DtCColor9, XmRPixel, sizeof(Pixel),
+	XtOffsetOf(struct _DtTermRec, vt.color9),
+	XtRString, (XtPointer) "red"
+    },
+    {
+	DtNcolor10, DtCColor10, XmRPixel, sizeof(Pixel),
+	XtOffsetOf(struct _DtTermRec, vt.color10),
+	XtRString, (XtPointer) "green"
+    },
+    {
+	DtNcolor11, DtCColor11, XmRPixel, sizeof(Pixel),
+	XtOffsetOf(struct _DtTermRec, vt.color11),
+	XtRString, (XtPointer) "yellow"
+    },
+    {
+	DtNcolor12, DtCColor12, XmRPixel, sizeof(Pixel),
+	XtOffsetOf(struct _DtTermRec, vt.color12),
+	XtRString, (XtPointer) "#5c5cff"
+    },
+    {
+	DtNcolor13, DtCColor13, XmRPixel, sizeof(Pixel),
+	XtOffsetOf(struct _DtTermRec, vt.color13),
+	XtRString, (XtPointer) "magenta"
+    },
+    {
+	DtNcolor14, DtCColor14, XmRPixel, sizeof(Pixel),
+	XtOffsetOf(struct _DtTermRec, vt.color14),
+	XtRString, (XtPointer) "cyan"
+    },
+    {
+	DtNcolor15, DtCColor15, XmRPixel, sizeof(Pixel),
+	XtOffsetOf(struct _DtTermRec, vt.color15),
+	XtRString, (XtPointer) "white"
+    },
+    {
+	DtNboldColors, DtCBoldColors, XmRBoolean, sizeof(Boolean),
+	XtOffsetOf(struct _DtTermRec, vt.boldColors),
+	XtRImmediate, (XtPointer) True
+    },
 #ifdef	DKS
     {
 	DtNstickyPrevCursor, DtCStickyCursor, XmRBoolean,

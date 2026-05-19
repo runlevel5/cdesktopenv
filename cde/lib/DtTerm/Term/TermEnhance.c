@@ -63,7 +63,7 @@ _DtTermResolveFgPixel(Widget w, enhValue v, unsigned int videoFlags)
 
     if (ENH_COLOR_MODE(v) == ENH_MODE_INDEXED) {
 	slot = (int) ENH_COLOR_PAYLOAD(v);
-	if (IS_BOLD(videoFlags) && slot >= 1 && slot <= 8) {
+	if (tw->vt.boldColors && IS_BOLD(videoFlags) && slot >= 1 && slot <= 8) {
 	    slot += 8;
 	}
 	if (slot >= 1 && slot <= 16) {
