@@ -61,6 +61,21 @@ XCOMM include "Dt"
 ! variant; set False to keep the dim colour with just the bold font.
 !
 ! *boldColors: True
+
+! TERM exported to the child shell.  Defaults to dtterm-256color so that
+! curses applications (vim, neovim, tmux, htop, less, ...) pick up the
+! 256-colour palette out of the box.  Set this to dtterm for the historical
+! 8-colour TERM, or to dtterm-direct to advertise 24-bit truecolour:
+!
+! *termName: dtterm-256color
+! *termName: dtterm
+! *termName: dtterm-direct
+!
+! Both dtterm-256color and dtterm-direct are installed by `make install`
+! via tic; if you are running an uninstalled build and your $TERMINFO
+! database does not have these entries, run:
+!     tic -x cde/programs/dtterm/dtterm-extra.ti
+! once to compile them into ~/.terminfo, or fall back to *termName: dtterm.
 ! These will enable the menu accelerators which will allow F10 to act
 ! as the menu pulldown and popup accelerator:
 !*menu_pulldown.menuAccelerator: <Key>osfMenuBar

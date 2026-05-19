@@ -149,7 +149,7 @@ static XtResource resources[] =
     {
 	DtNtermName, DtCTermName, XmRString, sizeof(char *),
 	XtOffsetOf( struct _DtTermPrimitiveRec, term.termName),
-	XtRImmediate, (XtPointer) "dtterm"
+	XtRImmediate, (XtPointer) "dtterm-256color"
     },
     {
 	DtNc132, DtCC132, XmRBoolean, sizeof(Boolean),
