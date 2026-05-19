@@ -599,7 +599,8 @@ initializeModes
     td->saveCursor.enhVideoState = 0;   /* init for Save Cursor (Esc 7) */
     td->saveCursor.enhFieldState = FIELD_UNPROTECT;
     td->saveCursor.enhFgColorState = 0;
-    td->saveCursor.enhBgColorState = 0; /* init for Save Cursor (Esc 7) */
+    td->saveCursor.enhBgColorState = 0;
+    td->saveCursor.enhUlColorState = 0; /* init for Save Cursor (Esc 7) */
     td->saveCursor.GL = td->GL;		/* init for Save Cursor (Esc 7) */
     td->saveCursor.GR = td->GR;		/* init for Save Cursor (Esc 7) */
     td->saveCursor.G0 = td->G0;		/* init for Save Cursor (Esc 7) */

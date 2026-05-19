@@ -624,6 +624,7 @@ _DtTermFuncSoftReset(Widget w, int count, FunctionSource functionSource)
     td->saveCursor.originMode = False;
     td->saveCursor.enhFgColorState = 0;
     td->saveCursor.enhBgColorState = 0;
+    td->saveCursor.enhUlColorState = 0;
     td->saveCursor.GL = &td->G0; 
     td->saveCursor.GR = &td->G0;    
     td->saveCursor.G0 = RENDER_FONT_NORMAL;
@@ -671,6 +672,12 @@ _DtTermFuncSoftReset(Widget w, int count, FunctionSource functionSource)
     (void)_DtTermPrimBufferSetEnhancement(tpd->termBuffer,
               tpd->topRow + tpd->cursorRow, tpd->cursorColumn, enhBgColor,
 	      td->enhBgColorState);
+
+    /* underline colour... */
+    td->enhUlColorState = ENH_MAKE_DEFAULT();
+    (void)_DtTermPrimBufferSetEnhancement(tpd->termBuffer,
+              tpd->topRow + tpd->cursorRow, tpd->cursorColumn, enhUlColor,
+	      td->enhUlColorState);
 
     /* font... */
     td->GL = &td->G0;
@@ -939,6 +946,20 @@ _DtTermFuncTab(Widget w, int count, FunctionSource functionSource)
  */
 
 void
+_DtTermSetUlColor(Widget w, enhValue v)
+{
+    DtTermPrimitiveWidget tw  = (DtTermPrimitiveWidget) w;
+    DtTermPrimData        tpd = tw->term.tpd;
+    DtTermWidget          vtw = (DtTermWidget) w;
+    DtTermData            td  = vtw->vt.td;
+
+    td->enhUlColorState = v;
+    (void) _DtTermPrimBufferSetEnhancement(tpd->termBuffer,
+	    tpd->topRow + tpd->cursorRow, tpd->cursorColumn,
+	    enhUlColor, td->enhUlColorState);
+}
+
+void
 _DtTermSetColor(Widget w, Boolean isBg, enhValue v)
 {
     DtTermPrimitiveWidget tw  = (DtTermPrimitiveWidget) w;
@@ -978,9 +999,13 @@ _DtTermVideoEnhancement(Widget w,int value)
 		      tpd->topRow + tpd->cursorRow, tpd->cursorColumn,
 		      enhFgColor, td->enhFgColorState);
 	      td->enhBgColorState = ENH_MAKE_DEFAULT();
-	      (void)_DtTermPrimBufferSetEnhancement(tpd->termBuffer, 
+	      (void)_DtTermPrimBufferSetEnhancement(tpd->termBuffer,
 		      tpd->topRow + tpd->cursorRow, tpd->cursorColumn,
 		      enhBgColor, td->enhBgColorState);
+	      td->enhUlColorState = ENH_MAKE_DEFAULT();
+	      (void)_DtTermPrimBufferSetEnhancement(tpd->termBuffer,
+		      tpd->topRow + tpd->cursorRow, tpd->cursorColumn,
+		      enhUlColor, td->enhUlColorState);
               break;
 
         case 1:  /* Bold... */
@@ -1006,13 +1031,17 @@ _DtTermVideoEnhancement(Widget w,int value)
 		 td->enhVideoState |= SECURE ;
                  break;
 
+        case 21: /* Doubly underlined... */
+		 td->enhVideoState |= DOUBLE_UNDERLINE ;
+		 break;
+
         case 22: /* Half bright off... */
 		 td->enhVideoState &= ~HALF_BRIGHT ;
 		 td->enhVideoState &= ~BOLD ;
                  break;
 
-        case 24: /* Underline off... */
-		 td->enhVideoState &= ~UNDERLINE  ;
+        case 24: /* Underline off (single AND double)... */
+		 td->enhVideoState &= ~(UNDERLINE | DOUBLE_UNDERLINE) ;
                  break;
 
         case 25: /* we don't do blink, so use inverse */
@@ -1082,6 +1111,30 @@ _DtTermVideoEnhancement(Widget w,int value)
 		      enhBgColor, td->enhBgColorState);
 	      return;
 	      break;
+
+	case 53: /* Overlined... */
+		 td->enhVideoState |= OVERLINE ;
+		 break;
+	case 55: /* Overline off... */
+		 td->enhVideoState &= ~OVERLINE ;
+		 break;
+
+	case 59: /* Default underline colour... */
+	      _DtTermSetUlColor(w, ENH_MAKE_DEFAULT());
+	      return;
+	      break;
+
+	case 73: /* Superscript... */
+		 td->enhVideoState |= SUPERSCRIPT ;
+		 td->enhVideoState &= ~SUBSCRIPT ;
+		 break;
+	case 74: /* Subscript... */
+		 td->enhVideoState |= SUBSCRIPT ;
+		 td->enhVideoState &= ~SUPERSCRIPT ;
+		 break;
+	case 75: /* Superscript / subscript off... */
+		 td->enhVideoState &= ~(SUPERSCRIPT | SUBSCRIPT) ;
+		 break;
 
 	case 100:
 	case 101:

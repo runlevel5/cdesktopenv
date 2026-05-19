@@ -935,6 +935,37 @@ _DtTermCharAttributes(Widget w)   /* SGR CSIpm */
       /* fall through: unrecognised sub-form, dispatch 38/48 as legacy */
     }
 
+    /*
+    ** SGR 58 sub-sequences: 58;5;N (indexed underline colour) and
+    ** 58;2;R;G;B (24-bit underline colour).  Same shape as 38/48.
+    */
+    if (value == 58 && (cnt + 1) <= n) {
+      int sub = context->parms[cnt + 1] ;
+
+      if (sub == 5 && (cnt + 2) <= n) {
+	int xcol = context->parms[cnt + 2] ;
+	if (xcol < 0)   xcol = 0 ;
+	if (xcol > 255) xcol = 255 ;
+	_DtTermSetUlColor(w, ENH_MAKE_INDEXED((unsigned int) xcol + 1)) ;
+	cnt += 3 ;
+	continue ;
+      }
+      if (sub == 2 && (cnt + 4) <= n) {
+	int r = context->parms[cnt + 2] ;
+	int g = context->parms[cnt + 3] ;
+	int b = context->parms[cnt + 4] ;
+	if (r < 0) r = 0 ;   if (r > 255) r = 255 ;
+	if (g < 0) g = 0 ;   if (g > 255) g = 255 ;
+	if (b < 0) b = 0 ;   if (b > 255) b = 255 ;
+	_DtTermSetUlColor(w, ENH_MAKE_RGB((unsigned int) r,
+					  (unsigned int) g,
+					  (unsigned int) b)) ;
+	cnt += 5 ;
+	continue ;
+      }
+      /* fall through: unrecognised sub-form for 58 -- dropped */
+    }
+
     _DtTermVideoEnhancement(w, value) ;
     cnt++ ;
   }
@@ -1087,6 +1118,7 @@ _DtTermSaveCursor(Widget w) /* DECSC ESC7 */
   vtd->saveCursor.enhFieldState = vtd->enhFieldState  ;  
   vtd->saveCursor.enhFgColorState = vtd->enhFgColorState;
   vtd->saveCursor.enhBgColorState = vtd->enhBgColorState;
+  vtd->saveCursor.enhUlColorState = vtd->enhUlColorState;
   vtd->saveCursor.GL = vtd->GL;
   vtd->saveCursor.GR = vtd->GR;
   vtd->saveCursor.G0 = vtd->G0;
@@ -1114,6 +1146,7 @@ _DtTermRestoreCursor(Widget w) /* DECRC ESC8 */
   vtd->enhFieldState  = vtd->saveCursor.enhFieldState ; 
   vtd->enhFgColorState = vtd->saveCursor.enhFgColorState;
   vtd->enhBgColorState = vtd->saveCursor.enhBgColorState;
+  vtd->enhUlColorState = vtd->saveCursor.enhUlColorState;
   vtd->GR = vtd->saveCursor.GR;
   vtd->GL = vtd->saveCursor.GL;
   vtd->G0 = vtd->saveCursor.G0;

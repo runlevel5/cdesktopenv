@@ -56,7 +56,7 @@ typedef struct _DtEnh
     /*
     ** The video enhancements.
     */
-    unsigned int    video         :6;
+    unsigned int    video         :10;
 
     /*
     ** FIELD_UNPROTECT  0
@@ -77,6 +77,12 @@ typedef struct _DtEnh
     */
     uint32_t        fgColor;
     uint32_t        bgColor;
+
+    /*
+    ** Packed underline colour -- SGR 58 / 59.  When this is the all-zero
+    ** DEFAULT, the renderer falls back to fgColor for underline lines.
+    */
+    uint32_t        ulColor;
 } DtTermEnhPart, *DtEnh;
 
 /* 

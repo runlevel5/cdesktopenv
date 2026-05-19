@@ -65,9 +65,10 @@ typedef struct _VtsaveCursor {
     short cursorRow;      /* to save current row    */
     short cursorColumn;   /* to save current column */
     char enhFieldState; /* to save current Char Erase state   */
-    char enhVideoState; /* to save current video enhancements */
+    uint32_t enhVideoState; /* to save current video enhancements */
     uint32_t enhFgColorState;   /* packed (mode, payload) fg colour */
     uint32_t enhBgColorState;   /* packed (mode, payload) bg colour */
+    uint32_t enhUlColorState;   /* packed (mode, payload) underline colour */
     Boolean originMode;  /* to save current origin mode        */
     Boolean wrapMode;    /* to save current Wrap mode    */
     int *GL;			/* left graphics character set	*/
@@ -171,10 +172,11 @@ typedef struct _DtTermDataRec {
 
     int compatLevel;         /* 1=vt100, 2=vt200 */
     int terminalId;          /* 220, 100, 101, 102  */
-    char enhVideoState;		/* current video enhancement state	*/
+    uint32_t enhVideoState;	/* current video enhancement state	*/
     char enhFieldState;		/* current field enhancement state	*/
     uint32_t enhFgColorState;	/* packed (mode, payload) fg colour     */
     uint32_t enhBgColorState;	/* packed (mode, payload) bg colour     */
+    uint32_t enhUlColorState;	/* packed (mode, payload) underline col */
     char enhFontState;		/* current font enhancement state	*/
 
     VtSaveCursorRec saveCursor ;

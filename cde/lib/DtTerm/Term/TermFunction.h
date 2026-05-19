@@ -88,6 +88,12 @@ extern void _DtTermVideoEnhancement(Widget w,int value);
 */
 extern void _DtTermSetColor(Widget w, Boolean isBg, enhValue v);
 
+/*
+** Write a packed enhValue underline colour and stamp it on the cell at
+** the cursor.  Used by the SGR parser for SGR 58;5;N / 58;2;R;G;B / 59.
+*/
+extern void _DtTermSetUlColor(Widget w, enhValue v);
+
 extern void _DtTermFontEnhancement(Widget w,int value);
 
 extern void _DtTermSetUserKeyLock(Widget w,Boolean lock_state);
