@@ -71,6 +71,7 @@ extern StateTableRec _DtTermStateGetTitle;
 extern StateTableRec _DtTermStateGetIcon;
 extern StateTableRec _DtTermStateGetIconFile;
 extern StateTableRec _DtTermStateLeftBracketNotQ;
+extern StateTableRec _DtTermStateLeftBracketSpace;	/* CSI .. SP <byte> */
 
 #endif /* _Dt_TermParseTableP_h */
 /* DON'T ADD ANYTHING AFTER THIS #endif... */

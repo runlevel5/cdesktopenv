@@ -1005,6 +1005,42 @@ _DtTermDeviceAttributes(Widget w)    /* DA CSIpc */
   }
 }
 
+void
+_DtTermSetCursorStyle(Widget w)	/* DECSCUSR \e[N SP q */
+{
+  DtTermPrimitiveWidget tw = (DtTermPrimitiveWidget) w;
+  ParserContext context;
+  int ps;
+  unsigned char style;
+
+  Debug('P', fprintf(stderr,">>In func _DtTermSetCursorStyle\n"));
+  context = GetParserContext(w);
+  STORELASTARG(context);
+  /* Default Ps (no argument) is 1 -- blinking block, per the spec. */
+  ps = PCOUNT(context) ? context->parms[1] : 1;
+
+  switch (ps) {
+    case 0: case 1: case 2:
+      style = DtTERM_CHAR_CURSOR_BOX;
+      break;
+    case 3: case 4:
+      style = DtTERM_CHAR_CURSOR_BAR;	/* underline */
+      break;
+    case 5: case 6:
+      style = DtTERM_CHAR_CURSOR_VBAR;	/* vertical bar */
+      break;
+    default:
+      /* unrecognised -- silently ignore */
+      return;
+  }
+
+  if (tw->term.charCursorStyle != style) {
+    /* Setting via XtVaSetValues drives the widget's set_values method
+       which schedules a repaint of the cursor cell. */
+    XtVaSetValues(w, DtNcharCursorStyle, (XtArgVal) style, (String) NULL);
+  }
+}
+
 void 
 _DtTermChangeTextParam(Widget w)  /* xterm  CSIp;pcCtrl-G  */
 {

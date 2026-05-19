@@ -167,28 +167,42 @@ cursorToggle(Widget w)
     }
 
     if (cursorRow < tw->term.rows) {
-	if (DtTERM_CHAR_CURSOR_BOX == tw->term.charCursorStyle) {
-	    /* draw a box... */
-	    y = cursorRow * tpd->cellHeight + tpd->offsetY;
-	    height = tpd->cellHeight;
-	} else {
-	    /* draw a line... */
-	    y = cursorRow * tpd->cellHeight + tpd->offsetY +
-		    tpd->ascent + 1;
-	    height = 2;
+	int cellX = ((tpd->cursorColumn >= tw->term.columns) ?
+		tw->term.columns - 1 :
+		tpd->cursorColumn) * tpd->cellWidth + tpd->offsetX;
+	int cellY = cursorRow * tpd->cellHeight + tpd->offsetY;
+	int drawX = cellX;
+	int drawY = cellY;
+	int drawW = tpd->cellWidth;
+	int drawH = tpd->cellHeight;
+
+	switch (tw->term.charCursorStyle) {
+	    case DtTERM_CHAR_CURSOR_BOX:
+		/* full-cell block; (drawX, drawY, drawW, drawH) already set. */
+		break;
+	    case DtTERM_CHAR_CURSOR_VBAR:
+		/* DECSCUSR 5/6: thin vertical bar along the cell's left edge. */
+		drawW = 2;
+		break;
+	    case DtTERM_CHAR_CURSOR_INVISIBLE:
+		/* render nothing this toggle. */
+		drawW = 0;
+		drawH = 0;
+		break;
+	    case DtTERM_CHAR_CURSOR_BAR:
+	    default:
+		/* underline: 2-pixel horizontal bar near the baseline. */
+		drawY = cellY + tpd->ascent + 1;
+		drawH = 2;
+		break;
 	}
 
-	(void) XFillRectangle(XtDisplay(w),
-					/* Display			*/
-		XtWindow(w),		/* Window			*/
-		tpd->cursorGC.gc,	/* GC				*/
-		((tpd->cursorColumn >= tw->term.columns) ?
-		tw->term.columns - 1 :
-		tpd->cursorColumn) * tpd->cellWidth + tpd->offsetX,
-					/* x				*/
-		y,			/* y				*/
-		tpd->cellWidth,		/* width			*/
-		height);		/* height			*/
+	if (drawW > 0 && drawH > 0) {
+	    (void) XFillRectangle(XtDisplay(w),
+		    XtWindow(w),
+		    tpd->cursorGC.gc,
+		    drawX, drawY, drawW, drawH);
+	}
     }
 
     /* toggle the state flag... */

@@ -306,6 +306,7 @@ left_bracket_table_no_Q[] =
 {
  {  ';',    ';', &_DtTermStateLeftBracketNotQ,_DtTermParsePushNum, },
  {  ':',    ':', &_DtTermStateLeftBracketNotQ,_DtTermParsePushNum, },	/* ECMA-48 sub-arg sep */
+ {  ' ',    ' ', &_DtTermStateLeftBracketSpace,_DtTermPrimParserNextState, },	/* CSI intermed */
  {  '0',    '9', &_DtTermStateLeftBracketNotQ, _DtTermEnterNum, },
  {  '@',    '@', &stateStart,  _DtTermInsertChars, /* IL Insert Blank char*/ },
  {  'A',    'A', &stateStart,  _DtTermCursorUp,      /* CUU Cursor up n */ },
@@ -340,6 +341,18 @@ left_bracket_table_no_Q[] =
 StateTableRec _DtTermStateLeftBracketNotQ  = {False, left_bracket_table_no_Q, pre_parse_table};
 
 /*
+** this is the table used when "Esc [ ... SP" has been seen (CSI intermediate
+** space byte).  Currently we only care about 'q' -- DECSCUSR cursor style.
+*/
+static StateEntryRec
+left_bracket_space_table[] =
+{
+ {  'q',    'q', &stateStart,  _DtTermSetCursorStyle, /* DECSCUSR */ },
+ {  0x00, 0xFF, &stateStart,   _DtTermPrintState     /* end of table */ },
+};
+StateTableRec _DtTermStateLeftBracketSpace  = {False, left_bracket_space_table, pre_parse_table};
+
+/*
 ** this is table used when esc [ has been seen
 */
 static StateEntryRec
@@ -348,6 +361,7 @@ left_bracket_table[] =
  {  '?',    '?', &_DtTermStateEscQuestion, _DtTermPrimParserNextState,/*DECSET*/ },
  {  ';',    ';', &_DtTermStateLeftBracketNotQ ,_DtTermParsePushNum, },
  {  ':',    ':', &_DtTermStateLeftBracketNotQ ,_DtTermParsePushNum, },	/* ECMA-48 sub-arg sep */
+ {  ' ',    ' ', &_DtTermStateLeftBracketSpace ,_DtTermPrimParserNextState, },	/* CSI intermed */
  {  '0',    '9', &_DtTermStateLeftBracketNotQ ,  _DtTermEnterNum, },
  {  '@',    '@', &stateStart,  _DtTermInsertChars, /* IL Insert Blank char*/ },
  {  'A',    'A', &stateStart,  _DtTermCursorUp,      /* CUU Cursor up n */ },
