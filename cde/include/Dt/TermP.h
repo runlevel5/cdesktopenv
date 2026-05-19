@@ -100,6 +100,13 @@ typedef struct _DtTermPart
     ** brightening (i.e. only via the bold font and / or overstrike).
     */
     Boolean			boldColors;
+
+    /*
+    ** OSC 52 clipboard control.  Defaults to False so a hostile program
+    ** can't silently slurp or replace the user's clipboard.  Set True via
+    ** Dtterm*allowClipboardOps if you want OSC 52 set / paste handling.
+    */
+    Boolean			allowClipboardOps;
 } DtTermPart;
 
 /* full instance record declaration... */

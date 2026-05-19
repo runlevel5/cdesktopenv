@@ -632,6 +632,9 @@ extern "C" {
 #ifndef DtNboldColors
 #define	DtNboldColors			"boldColors"
 #endif
+#ifndef DtNallowClipboardOps
+#define	DtNallowClipboardOps		"allowClipboardOps"
+#endif
 
 #ifndef DtCFunctionKeyExecuteProc
 #define	DtCFunctionKeyExecuteProc	"FunctionKeyExecuteProc"
@@ -710,6 +713,9 @@ extern "C" {
 #endif
 #ifndef DtCBoldColors
 #define	DtCBoldColors			"BoldColors"
+#endif
+#ifndef DtCAllowClipboardOps
+#define	DtCAllowClipboardOps		"AllowClipboardOps"
 #endif
 
 

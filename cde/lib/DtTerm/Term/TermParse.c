@@ -34,6 +34,7 @@
 
 #include "TermHeader.h"
 #include <string.h>	/* strtok_r */
+#include <Xm/CutPaste.h>	/* XmClipboard* */
 #include "TermPrimDebug.h"
 #include "TermPrimP.h"
 #include "TermPrimI.h"
@@ -1008,6 +1009,130 @@ _DtTermDeviceAttributes(Widget w)    /* DA CSIpc */
 }
 
 /*
+** Base64 decode a NUL-terminated string in place into `out`.  Returns the
+** number of bytes written, or -1 on malformed input.  The output buffer
+** must be at least 3 * strlen(in) / 4 bytes; the caller passes the
+** allocated size as `outCap` for a safety check.
+*/
+static int
+_DtTermB64Decode(const char *in, unsigned char *out, int outCap)
+{
+    static const signed char tbl[256] = {
+	[0]=-1,
+	['A']= 0,['B']= 1,['C']= 2,['D']= 3,['E']= 4,['F']= 5,['G']= 6,['H']= 7,
+	['I']= 8,['J']= 9,['K']=10,['L']=11,['M']=12,['N']=13,['O']=14,['P']=15,
+	['Q']=16,['R']=17,['S']=18,['T']=19,['U']=20,['V']=21,['W']=22,['X']=23,
+	['Y']=24,['Z']=25,
+	['a']=26,['b']=27,['c']=28,['d']=29,['e']=30,['f']=31,['g']=32,['h']=33,
+	['i']=34,['j']=35,['k']=36,['l']=37,['m']=38,['n']=39,['o']=40,['p']=41,
+	['q']=42,['r']=43,['s']=44,['t']=45,['u']=46,['v']=47,['w']=48,['x']=49,
+	['y']=50,['z']=51,
+	['0']=52,['1']=53,['2']=54,['3']=55,['4']=56,['5']=57,['6']=58,['7']=59,
+	['8']=60,['9']=61,['+']=62,['/']=63,
+    };
+    int n = 0;
+    unsigned int v = 0;
+    int bits = 0;
+    while (*in && *in != '=') {
+	signed char d = tbl[(unsigned char) *in++];
+	if (d < 0) {
+	    /* skip whitespace silently, fail on garbage */
+	    if (in[-1] == ' ' || in[-1] == '\n' || in[-1] == '\r' || in[-1] == '\t')
+		continue;
+	    return -1;
+	}
+	v = (v << 6) | (unsigned int) d;
+	bits += 6;
+	if (bits >= 8) {
+	    bits -= 8;
+	    if (n >= outCap) return -1;
+	    out[n++] = (unsigned char) ((v >> bits) & 0xff);
+	}
+    }
+    return n;
+}
+
+
+/*
+** OSC 52 -- clipboard set.
+**   payload = "selection ; base64data"
+** where selection is one or more of c/p/q/s/0..7 (we treat anything that
+** mentions 'c' as CLIPBOARD; PRIMARY is mapped onto CLIPBOARD too because
+** dtterm's existing PRIMARY ownership is wired to the cell-level selection
+** machinery in TermPrimSelect.c and would conflict with a free-form
+** OSC 52 payload).
+**
+** Query ('?' in place of base64data) is NOT implemented -- letting a
+** program read back the user's clipboard is a confused-deputy hazard.
+*/
+static void
+_DtTermOscClipboard(Widget w, char *payload)
+{
+    DtTermWidget tw  = (DtTermWidget) w;
+    DtTermData   td  = tw->vt.td;
+    Display     *dpy = XtDisplay(w);
+    Window       win = XtWindow(w);
+    char        *sep;
+    char        *sel;
+    char        *data;
+    unsigned char *decoded;
+    int          n;
+    long         item_id = 0;
+    long         data_id = 0;
+    XmString     label;
+    int          status;
+
+    if (!tw->vt.allowClipboardOps) {
+	/* Silently drop unless the user has opted in. */
+	return;
+    }
+    if (payload == NULL || *payload == '\0') return;
+    if (!XtIsRealized(w)) return;
+
+    sep = strchr(payload, ';');
+    if (!sep) return;
+    *sep = '\0';
+    sel = payload;
+    data = sep + 1;
+
+    /* Refuse query for safety. */
+    if (data[0] == '?' && data[1] == '\0') return;
+
+    /* We only handle "set" sequences directed at the clipboard.  Common
+       selection chars: 'c' clipboard, 'p' primary, 's' select, '0'..'7'
+       cut buffers.  Empty / unknown -> clipboard. */
+    (void) sel;	/* selection string accepted but treated uniformly */
+
+    n = (int) strlen(data);
+    if (n <= 0) return;
+    decoded = (unsigned char *) XtMalloc((Cardinal) ((n / 4) * 3 + 4));
+    n = _DtTermB64Decode(data, decoded, (n / 4) * 3 + 3);
+    if (n < 0) {
+	XtFree((char *) decoded);
+	return;
+    }
+    decoded[n] = '\0';
+
+    /* Push to the Motif clipboard.  This is the same path the
+       TermView "copy" menu uses and lands the text on CLIPBOARD where
+       other apps (xclip, browsers, IDEs) expect it. */
+    label = XmStringCreateLocalized("XM_TERM");
+    status = XmClipboardStartCopy(dpy, win, label,
+	    CurrentTime, w, NULL, &item_id);
+    if (status == ClipboardSuccess) {
+	status = XmClipboardCopy(dpy, win, item_id, "STRING",
+		(XtPointer) decoded, (unsigned long) n, 0, &data_id);
+	if (status == ClipboardSuccess) {
+	    (void) XmClipboardEndCopy(dpy, win, item_id);
+	} else {
+	    (void) XmClipboardCancelCopy(dpy, win, item_id);
+	}
+    }
+    XmStringFree(label);
+    XtFree((char *) decoded);
+}
+
+/*
 ** OSC 4 -- palette query / set.  Payload is one or more `N;spec` pairs
 ** separated by ';'.  spec may be '?' (query) or any X colour string.
 **
@@ -1271,6 +1396,10 @@ _DtTermChangeTextParam(Widget w)  /* xterm  CSIp;pcCtrl-G  */
 
     case 4: /* set / query palette entry */
             _DtTermOscPalette(w, (char *) context->stringParms[0].str);
+            break;
+
+    case 52: /* clipboard set (security-gated) */
+            _DtTermOscClipboard(w, (char *) context->stringParms[0].str);
             break;
 
     case 10: /* set / query default foreground colour */

@@ -251,6 +251,11 @@ static XtResource resources[] =
 	XtOffsetOf(struct _DtTermRec, vt.boldColors),
 	XtRImmediate, (XtPointer) True
     },
+    {
+	DtNallowClipboardOps, DtCAllowClipboardOps, XmRBoolean, sizeof(Boolean),
+	XtOffsetOf(struct _DtTermRec, vt.allowClipboardOps),
+	XtRImmediate, (XtPointer) False
+    },
 #ifdef	DKS
     {
 	DtNstickyPrevCursor, DtCStickyCursor, XmRBoolean,
