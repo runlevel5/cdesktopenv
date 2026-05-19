@@ -305,6 +305,7 @@ static StateEntryRec
 left_bracket_table_no_Q[] =
 {
  {  ';',    ';', &_DtTermStateLeftBracketNotQ,_DtTermParsePushNum, },
+ {  ':',    ':', &_DtTermStateLeftBracketNotQ,_DtTermParsePushNum, },	/* ECMA-48 sub-arg sep */
  {  '0',    '9', &_DtTermStateLeftBracketNotQ, _DtTermEnterNum, },
  {  '@',    '@', &stateStart,  _DtTermInsertChars, /* IL Insert Blank char*/ },
  {  'A',    'A', &stateStart,  _DtTermCursorUp,      /* CUU Cursor up n */ },
@@ -346,6 +347,7 @@ left_bracket_table[] =
 {
  {  '?',    '?', &_DtTermStateEscQuestion, _DtTermPrimParserNextState,/*DECSET*/ },
  {  ';',    ';', &_DtTermStateLeftBracketNotQ ,_DtTermParsePushNum, },
+ {  ':',    ':', &_DtTermStateLeftBracketNotQ ,_DtTermParsePushNum, },	/* ECMA-48 sub-arg sep */
  {  '0',    '9', &_DtTermStateLeftBracketNotQ ,  _DtTermEnterNum, },
  {  '@',    '@', &stateStart,  _DtTermInsertChars, /* IL Insert Blank char*/ },
  {  'A',    'A', &stateStart,  _DtTermCursorUp,      /* CUU Cursor up n */ },
