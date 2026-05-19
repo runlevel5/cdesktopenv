@@ -48,10 +48,18 @@ typedef struct _TermCharInfoRec *TermCharInfo;
 #define	TermENH_SECURE			(1 << 0)
 #define	TermENH_UNDERLINE		(1 << 1)
 #define	TermENH_OVERSTRIKE		(1 << 2)
+#define	TermENH_DOUBLE_UNDERLINE	(1 << 3)
+#define	TermENH_OVERLINE		(1 << 4)
+#define	TermENH_SUPERSCRIPT		(1 << 5)
+#define	TermENH_SUBSCRIPT		(1 << 6)
 
 #define	TermIS_SECURE(flags)		((flags) & TermENH_SECURE)
 #define	TermIS_UNDERLINE(flags)		((flags) & TermENH_UNDERLINE)
 #define	TermIS_OVERSTRIKE(flags)	((flags) & TermENH_OVERSTRIKE)
+#define	TermIS_DOUBLE_UNDERLINE(flags)	((flags) & TermENH_DOUBLE_UNDERLINE)
+#define	TermIS_OVERLINE(flags)		((flags) & TermENH_OVERLINE)
+#define	TermIS_SUPERSCRIPT(flags)	((flags) & TermENH_SUPERSCRIPT)
+#define	TermIS_SUBSCRIPT(flags)		((flags) & TermENH_SUBSCRIPT)
 
 /*
 ** enhValue carries one enhancement field through the buffer / renderer
@@ -96,6 +104,7 @@ typedef unsigned char termChar;
 typedef struct _TermEnhInfoRec {
     Pixel fg;
     Pixel bg;
+    Pixel ulFg;		/* underline-line pixel (SGR 58 / 59) */
     TermFont font;
     unsigned long flags;
 } TermEnhInfoRec;

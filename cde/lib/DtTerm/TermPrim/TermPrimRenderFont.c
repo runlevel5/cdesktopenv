@@ -39,6 +39,7 @@ FontRenderFunction(
     TermFont		  font,
     Pixel		  fg,
     Pixel		  bg,
+    Pixel		  ulFg,
     unsigned long	  flags,
     int			  x,
     int			  y,
@@ -108,13 +109,19 @@ FontRenderFunction(
 	(void) shortSleep(100000);
     }
 			
-    (void) XDrawImageString(XtDisplay(w),	/* Display		*/
-	    XtWindow(w),			/* Drawable		*/
-	    tpd->renderGC.gc,			/* GC			*/
-	    x,					/* x			*/
-	    y + fontStruct->ascent,		/* y			*/
-	    (char *) string,			/* string		*/
-	    len);				/* length		*/
+    {
+	/* superscript / subscript shift the baseline by cellHeight/3. */
+	int subSupShift = 0;
+	if (TermIS_SUPERSCRIPT(flags))  subSupShift = -(int)(tpd->cellHeight / 3);
+	if (TermIS_SUBSCRIPT(flags))    subSupShift =  (int)(tpd->cellHeight / 3);
+	(void) XDrawImageString(XtDisplay(w),	/* Display		*/
+		XtWindow(w),			/* Drawable		*/
+		tpd->renderGC.gc,		/* GC			*/
+		x,				/* x			*/
+		y + fontStruct->ascent + subSupShift, /* y		*/
+		(char *) string,		/* string		*/
+		len);				/* length		*/
+    }
 
     /* handle overstrike... */
     if (TermIS_OVERSTRIKE(flags)) {
@@ -127,16 +134,40 @@ FontRenderFunction(
 		len);				/* length		*/
     }
 
-    /* handle the underline enhancement... */
-    /* draw the underline... */
-    if (TermIS_UNDERLINE(flags)) {
-	XDrawLine(XtDisplay(w),			/* Display		*/
-		XtWindow(w),			/* Window		*/
-		tpd->renderGC.gc,		/* GC			*/
-		x,				/* X1			*/
-		y + tpd->cellHeight - 1,		/* Y1			*/
-		x + len * tpd->cellWidth,	/* X2			*/
-		y + tpd->cellHeight - 1);	/* Y2			*/
+    /*
+    ** Underline-family decorations.  Use ulFg (the SGR 58 underline
+    ** colour, defaulting to fg) so the lines can differ from the
+    ** glyph foreground.  Restore the GC foreground afterwards so the
+    ** next call's first draw doesn't repeat the SetForeground.
+    */
+    if (TermIS_UNDERLINE(flags) || TermIS_DOUBLE_UNDERLINE(flags) ||
+	TermIS_OVERLINE(flags)) {
+	int yTop = y;
+	int yBot = y + tpd->cellHeight - 1;
+	int xEnd = x + len * tpd->cellWidth;
+
+	if (ulFg != fg) {
+	    XSetForeground(XtDisplay(w), tpd->renderGC.gc, ulFg);
+	    tpd->renderGC.foreground = ulFg;
+	}
+	if (TermIS_UNDERLINE(flags)) {
+	    XDrawLine(XtDisplay(w), XtWindow(w), tpd->renderGC.gc,
+		    x, yBot, xEnd, yBot);
+	}
+	if (TermIS_DOUBLE_UNDERLINE(flags)) {
+	    XDrawLine(XtDisplay(w), XtWindow(w), tpd->renderGC.gc,
+		    x, yBot,     xEnd, yBot);
+	    XDrawLine(XtDisplay(w), XtWindow(w), tpd->renderGC.gc,
+		    x, yBot - 2, xEnd, yBot - 2);
+	}
+	if (TermIS_OVERLINE(flags)) {
+	    XDrawLine(XtDisplay(w), XtWindow(w), tpd->renderGC.gc,
+		    x, yTop, xEnd, yTop);
+	}
+	if (ulFg != fg) {
+	    XSetForeground(XtDisplay(w), tpd->renderGC.gc, fg);
+	    tpd->renderGC.foreground = fg;
+	}
     }
 }
 

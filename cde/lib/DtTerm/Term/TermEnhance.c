@@ -35,6 +35,7 @@
 
 #define	ourFgEnh	(values[(int) enhFgColor])
 #define	ourBgEnh	(values[(int) enhBgColor])
+#define	ourUlEnh	(values[(int) enhUlColor])
 #define	ourFont		(values[(int) enhFont])
 #define	ourVideo	(values[(int) enhVideo])
 
@@ -148,12 +149,35 @@ _DtTermEnhProc(Widget w, enhValues values, TermEnhInfo info)
 	info->bg = tmp;
     }
 
+    /*
+    ** Underline colour: when SGR 58 has set ourUlEnh, resolve it via the
+    ** foreground path (no bold-brighten promotion).  Otherwise fall back
+    ** to info->fg so plain SGR 4 keeps its historical look.
+    */
+    if (ENH_IS_DEFAULT(ourUlEnh)) {
+	info->ulFg = info->fg;
+    } else {
+	info->ulFg = _DtTermResolveFgPixel(w, ourUlEnh, 0 /* no bold */);
+    }
+
     info->flags = (unsigned long) 0;
     if (IS_SECURE(ourVideo)) {
 	info->flags |= TermENH_SECURE;
     }
     if (IS_UNDERLINE(ourVideo)) {
 	info->flags |= TermENH_UNDERLINE;
+    }
+    if (IS_DOUBLE_UNDERLINE(ourVideo)) {
+	info->flags |= TermENH_DOUBLE_UNDERLINE;
+    }
+    if (IS_OVERLINE(ourVideo)) {
+	info->flags |= TermENH_OVERLINE;
+    }
+    if (IS_SUPERSCRIPT(ourVideo)) {
+	info->flags |= TermENH_SUPERSCRIPT;
+    }
+    if (IS_SUBSCRIPT(ourVideo)) {
+	info->flags |= TermENH_SUBSCRIPT;
     }
 
     info->font = td->renderFonts[RENDER_FONT_NORMAL].termFont;

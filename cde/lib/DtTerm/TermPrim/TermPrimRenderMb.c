@@ -371,32 +371,40 @@ _DtTermPrimRefreshTextWc(Widget w, short startColumn, short startRow,
 			tpd->cellWidth *  chunkWidth,
 			tpd->cellHeight);
 
-		/* underline as well... */
-		if (TermIS_UNDERLINE(enhInfo.flags)) {
+		/* under/double/over lines (use ulFg, not fg)... */
+		if (TermIS_UNDERLINE(enhInfo.flags) ||
+		    TermIS_DOUBLE_UNDERLINE(enhInfo.flags) ||
+		    TermIS_OVERLINE(enhInfo.flags)) {
+		    int cx0 = chunkStartColumn * tpd->cellWidth + tpd->offsetX;
+		    int cx1 = (chunkStartColumn + chunkWidth) *
+			      tpd->cellWidth + tpd->offsetX;
+		    int cy0 = startRow * tpd->cellHeight + tpd->offsetY;
+		    int cy1 = cy0 + tpd->cellHeight - 1;
+
 		    valueMask = (unsigned long) 0;
-		    if (tpd->renderGC.foreground != enhInfo.fg) {
-			tpd->renderGC.foreground = enhInfo.fg;
-			values.foreground = enhInfo.fg;
+		    if (tpd->renderGC.foreground != enhInfo.ulFg) {
+			tpd->renderGC.foreground = enhInfo.ulFg;
+			values.foreground = enhInfo.ulFg;
 			valueMask |= GCForeground;
 		    }
 		    if (valueMask) {
 			(void) XChangeGC(XtDisplay(w), tpd->renderGC.gc,
 				valueMask, &values);
 		    }
-		    (void) XDrawLine(XtDisplay(w),
-						/* Display		*/
-			    XtWindow(w),	/* Drawable		*/
-			    tpd->renderGC.gc,	/* GC			*/
-			    chunkStartColumn * tpd->cellWidth + tpd->offsetX,
-						/* X1			*/
-			    startRow * tpd->cellHeight + tpd->offsetY +
-			    tpd->cellHeight - 1,
-						/* Y1			*/
-			    (chunkStartColumn + chunkWidth) * tpd->cellWidth +
-			    tpd->offsetX,	/* X2			*/
-			    startRow * tpd->cellHeight + tpd->offsetY +
-			    tpd->cellHeight - 1);
-						/* Y2			*/
+		    if (TermIS_UNDERLINE(enhInfo.flags)) {
+			(void) XDrawLine(XtDisplay(w), XtWindow(w),
+				tpd->renderGC.gc, cx0, cy1, cx1, cy1);
+		    }
+		    if (TermIS_DOUBLE_UNDERLINE(enhInfo.flags)) {
+			(void) XDrawLine(XtDisplay(w), XtWindow(w),
+				tpd->renderGC.gc, cx0, cy1,     cx1, cy1);
+			(void) XDrawLine(XtDisplay(w), XtWindow(w),
+				tpd->renderGC.gc, cx0, cy1 - 2, cx1, cy1 - 2);
+		    }
+		    if (TermIS_OVERLINE(enhInfo.flags)) {
+			(void) XDrawLine(XtDisplay(w), XtWindow(w),
+				tpd->renderGC.gc, cx0, cy0, cx1, cy0);
+		    }
 		}
 	    } else {
 		(void) _DtTermPrimRenderText(
@@ -404,6 +412,7 @@ _DtTermPrimRefreshTextWc(Widget w, short startColumn, short startRow,
 		    enhInfo.font,		/* TermFont		*/
 		    enhInfo.fg,			/* fg Pixel		*/
 		    enhInfo.bg,			/* bg Pixel		*/
+		    enhInfo.ulFg,		/* ulFg Pixel		*/
 		    enhInfo.flags,		/* flags		*/
 		    chunkStartColumn * tpd->cellWidth + tpd->offsetX,
 						/* x			*/
