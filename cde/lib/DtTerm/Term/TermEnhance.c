@@ -164,7 +164,9 @@ _DtTermEnhProc(Widget w, enhValues values, TermEnhInfo info)
     if (IS_SECURE(ourVideo)) {
 	info->flags |= TermENH_SECURE;
     }
-    if (IS_UNDERLINE(ourVideo)) {
+    if (IS_UNDERLINE(ourVideo) || IS_LINK_ACTIVE(ourVideo)) {
+	/* OSC 8 hyperlinks render as underlined even when the app
+	** hasn't emitted an explicit SGR 4. */
 	info->flags |= TermENH_UNDERLINE;
     }
     if (IS_DOUBLE_UNDERLINE(ourVideo)) {

@@ -56,7 +56,7 @@ typedef struct _DtEnh
     /*
     ** The video enhancements.
     */
-    unsigned int    video         :10;
+    unsigned int    video         :11;
 
     /*
     ** FIELD_UNPROTECT  0

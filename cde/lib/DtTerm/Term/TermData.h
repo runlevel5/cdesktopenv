@@ -179,6 +179,14 @@ typedef struct _DtTermDataRec {
     uint32_t enhUlColorState;	/* packed (mode, payload) underline col */
     char enhFontState;		/* current font enhancement state	*/
 
+    /*
+    ** OSC 8 hyperlink state.  linkUrl is the URL currently in effect for
+    ** cells being written; NULL means no active link.  Owned by td, freed
+    ** via XtFree when replaced or cleared.  A future click handler will
+    ** look up the URL via this pointer.
+    */
+    char *linkUrl;
+
     VtSaveCursorRec saveCursor ;
  
     VtSaveDECModeRec saveDECMode ;

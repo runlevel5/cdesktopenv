@@ -48,8 +48,10 @@
 #define OVERLINE          (1 << 7)   /* SGR 53  */
 #define SUPERSCRIPT       (1 << 8)   /* SGR 73  */
 #define SUBSCRIPT         (1 << 9)   /* SGR 74  */
+#define LINK_ACTIVE       (1 << 10)  /* OSC 8 hyperlink */
 #define VIDEO_MASK  (BOLD | SECURE | HALF_BRIGHT | UNDERLINE | INVERSE | BLINK \
-                     | DOUBLE_UNDERLINE | OVERLINE | SUPERSCRIPT | SUBSCRIPT)
+                     | DOUBLE_UNDERLINE | OVERLINE | SUPERSCRIPT | SUBSCRIPT \
+                     | LINK_ACTIVE)
 
 #define IS_BOLD(flags)              ((flags) & BOLD)
 #define IS_SECURE(flags)            ((flags) & SECURE)
@@ -61,6 +63,7 @@
 #define IS_OVERLINE(flags)          ((flags) & OVERLINE)
 #define IS_SUPERSCRIPT(flags)       ((flags) & SUPERSCRIPT)
 #define IS_SUBSCRIPT(flags)         ((flags) & SUBSCRIPT)
+#define IS_LINK_ACTIVE(flags)       ((flags) & LINK_ACTIVE)
 
 /*
 ** Defines for field types

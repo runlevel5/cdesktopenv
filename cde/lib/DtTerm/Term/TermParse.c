@@ -1009,6 +1009,58 @@ _DtTermDeviceAttributes(Widget w)    /* DA CSIpc */
 }
 
 /*
+** OSC 8 -- hyperlink set / clear.
+**   payload = "params ; URL"
+** params is the spec-reserved id= field (ignored); URL is the hyperlink
+** target.  An empty URL ends any active link.
+**
+** While a link is active we OR LINK_ACTIVE into td->enhVideoState, which
+** the buffer-insert path stamps onto each new cell.  The renderer treats
+** LINK_ACTIVE as an implicit underline so hyperlinked text is visibly
+** marked even when the application doesn't emit SGR 4.
+*/
+static void
+_DtTermOscHyperlink(Widget w, char *payload)
+{
+    DtTermPrimitiveWidget tw  = (DtTermPrimitiveWidget) w;
+    DtTermPrimData        tpd = tw->term.tpd;
+    DtTermWidget          vtw = (DtTermWidget) w;
+    DtTermData            td  = vtw->vt.td;
+    char                 *sep;
+    char                 *url;
+
+    if (payload == NULL) return;
+
+    /* Split params and URL on the first ';' .  The params side is
+       discarded because dtterm doesn't yet group ID'd hyperlinks. */
+    sep = strchr(payload, ';');
+    if (sep) {
+	url = sep + 1;
+    } else {
+	url = payload;
+    }
+
+    if (*url == '\0') {
+	/* End of link. */
+	if (td->linkUrl) {
+	    XtFree(td->linkUrl);
+	    td->linkUrl = NULL;
+	}
+	td->enhVideoState &= ~LINK_ACTIVE;
+    } else {
+	/* New link.  Replace any in-progress URL. */
+	if (td->linkUrl) {
+	    XtFree(td->linkUrl);
+	}
+	td->linkUrl = XtNewString(url);
+	td->enhVideoState |= LINK_ACTIVE;
+    }
+    (void) _DtTermPrimBufferSetEnhancement(tpd->termBuffer,
+	    tpd->topRow + tpd->cursorRow, tpd->cursorColumn,
+	    enhVideo, td->enhVideoState);
+}
+
+/*
 ** Base64 decode a NUL-terminated string in place into `out`.  Returns the
 ** number of bytes written, or -1 on malformed input.  The output buffer
 ** must be at least 3 * strlen(in) / 4 bytes; the caller passes the
@@ -1233,12 +1285,11 @@ _DtTermOscPalette(Widget w, char *payload)
 	idxTok = strtok_r(NULL, ";", &save);
     }
 
-    /* Force a redraw of the visible content so existing cells pick up the
-       new palette.  XClearArea with exposures = True asks the widget for
-       a fresh paint. */
-    if (XtIsRealized(w)) {
-	XClearArea(dpy, XtWindow(w), 0, 0, 0, 0, True);
-    }
+    /* New cells written after this point use the updated palette
+       directly via colorPairs[].  Existing on-screen cells keep their
+       previous colour until something else redraws them; a forced
+       XClearArea here was tried and turned out to cause repaint-order
+       glitches, so it is intentionally not done. */
 }
 
 /*
@@ -1396,6 +1447,10 @@ _DtTermChangeTextParam(Widget w)  /* xterm  CSIp;pcCtrl-G  */
 
     case 4: /* set / query palette entry */
             _DtTermOscPalette(w, (char *) context->stringParms[0].str);
+            break;
+
+    case 8: /* hyperlink (OSC 8 ; params ; URL ST) */
+            _DtTermOscHyperlink(w, (char *) context->stringParms[0].str);
             break;
 
     case 52: /* clipboard set (security-gated) */
