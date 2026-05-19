@@ -1005,6 +1005,86 @@ _DtTermDeviceAttributes(Widget w)    /* DA CSIpc */
   }
 }
 
+/*
+** Helper for OSC 10 / 11 / 12: parse a colour spec or '?' query.  Returns 1
+** if the payload was an in-bounds set or query handled here, 0 otherwise.
+*/
+static int
+_DtTermOscDefaultColour(Widget w, int oscNum, const char *spec)
+{
+    DtTermPrimitiveWidget tw  = (DtTermPrimitiveWidget) w;
+    DtTermWidget          vtw = (DtTermWidget) w;
+    DtTermData            td  = vtw->vt.td;
+    Display              *dpy = XtDisplay(w);
+    Colormap              cm  = w->core.colormap;
+    XColor                xc;
+    char                  reply[64];
+    Pixel                 newPixel;
+
+    if (spec == NULL || *spec == '\0') {
+	return 0;
+    }
+
+    /* Query: respond with the current pixel's RGB in xterm's xparsecolour
+       format (rgb:RRRR/GGGG/BBBB), terminated by ST (\e\\). */
+    if (spec[0] == '?' && spec[1] == '\0') {
+	Pixel cur;
+	switch (oscNum) {
+	  case 10: cur = tw->primitive.foreground;     break;
+	  case 11: cur = w->core.background_pixel;     break;
+	  case 12: cur = td->colorPairs[0].fg.pixel;   /* cursor uses fg by default */
+		   break;
+	  default: return 0;
+	}
+	xc.pixel = cur;
+	XQueryColor(dpy, cm, &xc);
+	(void) snprintf(reply, sizeof(reply),
+		"\033]%d;rgb:%04x/%04x/%04x\033\\",
+		oscNum, xc.red, xc.green, xc.blue);
+	sendEscSequence(w, reply);
+	return 1;
+    }
+
+    /* Set: parse + allocate. */
+    if (!XParseColor(dpy, cm, spec, &xc)) {
+	return 0;
+    }
+    if (!XAllocColor(dpy, cm, &xc)) {
+	return 0;
+    }
+    newPixel = xc.pixel;
+
+    switch (oscNum) {
+      case 10:
+	/* default foreground.  Push through XtVaSetValues so the widget's
+	   set_values triggers a proper repaint.  Also update colorPair[0]
+	   so the cached default fg matches. */
+	XtVaSetValues(w, XtNforeground, (XtArgVal) newPixel, (String) NULL);
+	td->colorPairs[0].fg = xc;
+	td->colorPairs[0].fg.pixel = newPixel;
+	break;
+
+      case 11:
+	XtVaSetValues(w, XtNbackground, (XtArgVal) newPixel, (String) NULL);
+	td->colorPairs[0].bg = xc;
+	td->colorPairs[0].bg.pixel = newPixel;
+	break;
+
+      case 12:
+	/* Cursor colour: poke the cursorGC directly.  dtterm has no
+	   dedicated "cursor pixel" resource so this is the cleanest place
+	   for the change to land; the cursor will pick it up on the next
+	   blink toggle. */
+	if (tw->term.tpd && tw->term.tpd->cursorGC.gc) {
+	    tw->term.tpd->cursorGC.foreground = newPixel;
+	    XSetForeground(dpy, tw->term.tpd->cursorGC.gc, newPixel);
+	}
+	break;
+    }
+    return 1;
+}
+
+
 void
 _DtTermSetCursorStyle(Widget w)	/* DECSCUSR \e[N SP q */
 {
@@ -1076,6 +1156,13 @@ _DtTermChangeTextParam(Widget w)  /* xterm  CSIp;pcCtrl-G  */
 		    strlen((char *) context->stringParms[0].str) + 1);
             (void) strcpy(tw->term.subprocessCWD,
 		    (char *) context->stringParms[0].str);
+            break;
+
+    case 10: /* set / query default foreground colour */
+    case 11: /* set / query default background colour */
+    case 12: /* set / query cursor colour */
+            (void) _DtTermOscDefaultColour(w, context->parms[1],
+		    (const char *) context->stringParms[0].str);
             break;
    /*  These are handled by xterm but not by us.   
     case 46:  Change log file to context->stringParms[0] 

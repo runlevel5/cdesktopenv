@@ -265,8 +265,8 @@ StateTableRec _DtTermStateGetIconFile  = {False, get_file_table};
 static StateEntryRec
 get_stringBS_table[] =
 {
- {  '\\', '\\', &stateStart, _DtTermPrimParserNextState,/*valid terminator*/ },
- {  0x07, 0x07, &stateStart, _DtTermChangeTextParam,/*new Icon,Title,etc*/ },
+ {  '\\', '\\', &stateStart, _DtTermChangeTextParam,/*ST terminator -- dispatch*/ },
+ {  0x07, 0x07, &stateStart, _DtTermChangeTextParam,/*BEL terminator -- dispatch*/ },
  {  0x00, 0xFF, &_DtTermStateGetString, _DtTermSaveChar,   /* text*/ },
 };
 StateTableRec _DtTermStateGetStringBS  = {False, get_stringBS_table};
