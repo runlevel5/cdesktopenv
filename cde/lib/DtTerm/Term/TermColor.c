@@ -339,24 +339,42 @@ _DtTermColorInit(Widget w)
     /* initialize the color... */
     (void) _DtTermColorInitializeColorPair(w, &td->colorPairs[0]);
 
-    /* set the default colors for colorpairs 1-7...
-     */
-    InitColor(&td->colorPairs[1].fg, 0, 0, 0);	/* 1: fg=black*/
-    InitColor(&td->colorPairs[2].fg, 1, 0, 0);	/* 2: fg=red		*/
-    InitColor(&td->colorPairs[3].fg, 0, 1, 0);	/* 2: fg=green		*/
-    InitColor(&td->colorPairs[4].fg, 1, 1, 0);	/* 3: fg=yellow		*/
-    InitColor(&td->colorPairs[5].fg, 0, 0, 1);	/* 4: fg=blue		*/
-    InitColor(&td->colorPairs[6].fg, 1, 0, 1);	/* 5: fg=magenta	*/
-    InitColor(&td->colorPairs[7].fg, 0, 1, 1);	/* 6: fg=cyan		*/
-    InitColor(&td->colorPairs[8].fg, 1, 1, 1);	/* 7: fg=white		*/
-    InitColor(&td->colorPairs[1].bg, 0, 0, 0);	/* 1: bg=black          */
-    InitColor(&td->colorPairs[2].bg, 1, 0, 0);	/* 2: bg=red		*/
-    InitColor(&td->colorPairs[3].bg, 0, 1, 0);	/* 3: bg=green		*/
-    InitColor(&td->colorPairs[4].bg, 1, 1, 0);	/* 4: bg=yellow		*/
-    InitColor(&td->colorPairs[5].bg, 0, 0, 1);	/* 5: bg=blue		*/
-    InitColor(&td->colorPairs[6].bg, 1, 0, 1);	/* 6: bg=magenta	*/
-    InitColor(&td->colorPairs[7].bg, 0, 1, 1);	/* 7: bg=cyan		*/
-    InitColor(&td->colorPairs[8].bg, 1, 1, 1);	/* 8: bg=white		*/
+    /*
+    ** SGR 30-37 / 40-47 ANSI defaults.  Channels are dimmed slightly below
+    ** full intensity so the SGR 90-97 / 100-107 bright variants (and the
+    ** xterm bold-brightens-fg promotion) render visibly brighter.  The
+    ** RGB values mirror xterm's 'colour3' family: red3, green3, etc.
+    **
+    **   slot 1: black            #000000
+    **   slot 2: red       red3   #cd0000
+    **   slot 3: green     green3 #00cd00
+    **   slot 4: yellow    yellow3 #cdcd00
+    **   slot 5: blue      blue3  #0000ee
+    **   slot 6: magenta   magenta3 #cd00cd
+    **   slot 7: cyan      cyan3  #00cdcd
+    **   slot 8: white     gray90 #e5e5e5
+    */
+    {
+	static const struct { unsigned short r, g, b; } normalDefaults[8] = {
+	    {0x0000, 0x0000, 0x0000},	/* 1: black   */
+	    {0xcdcd, 0x0000, 0x0000},	/* 2: red     */
+	    {0x0000, 0xcdcd, 0x0000},	/* 3: green   */
+	    {0xcdcd, 0xcdcd, 0x0000},	/* 4: yellow  */
+	    {0x0000, 0x0000, 0xeeee},	/* 5: blue    */
+	    {0xcdcd, 0x0000, 0xcdcd},	/* 6: magenta */
+	    {0x0000, 0xcdcd, 0xcdcd},	/* 7: cyan    */
+	    {0xe5e5, 0xe5e5, 0xe5e5},	/* 8: white   */
+	};
+	int n;
+	for (n = 0; n < 8; n++) {
+	    td->colorPairs[1 + n].fg.red   = normalDefaults[n].r;
+	    td->colorPairs[1 + n].fg.green = normalDefaults[n].g;
+	    td->colorPairs[1 + n].fg.blue  = normalDefaults[n].b;
+	    td->colorPairs[1 + n].bg.red   = normalDefaults[n].r;
+	    td->colorPairs[1 + n].bg.green = normalDefaults[n].g;
+	    td->colorPairs[1 + n].bg.blue  = normalDefaults[n].b;
+	}
+    }
 
     /*
     ** xterm-style bright colour defaults for slots 9..16.  RGB values are
