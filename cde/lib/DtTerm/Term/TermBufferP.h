@@ -33,6 +33,7 @@
 
 #ifndef   _Dt_TermBufferP_h
 #define   _Dt_TermBufferP_h
+#include  <stdint.h>
 #include  "TermBuffer.h"
 #include  "TermPrimBufferP.h"
 
@@ -40,19 +41,24 @@
 extern "C" {
 #endif	/* __cplusplus */
 
-/* 
+/*
 ** This is the enhancement structure, one per character.
+**
+** Foreground and background colour fields are full 32-bit values carrying a
+** packed (mode, payload) encoding -- see ENH_MAKE_* / ENH_COLOR_MODE in
+** TermPrimBuffer.h.  This is wide enough for indexed (0-255) and direct-RGB
+** colour without losing precision in scrollback.
 */
 typedef struct _DtEnh
 {
     /* ANSI C requires bit fields to be int, signed int or unsigned int type */
 
-    /* 
+    /*
     ** The video enhancements.
     */
-    unsigned int    video         :6;
+    unsigned int    video         :11;
 
-    /*  
+    /*
     ** FIELD_UNPROTECT  0
     ** FIELD_PROTECT    1
     ** FIELD_TRANSMIT   2
@@ -60,17 +66,23 @@ typedef struct _DtEnh
     */
     unsigned int    field         :2;
 
-    /* 
-    ** index into color[0..15], on for foreground, on for background
-    */
-    unsigned int    fgColor       :4;
-    unsigned int    bgColor       :4;
-
-    /* 
+    /*
     ** FONT_NORMAL   0
     ** FONT_LINEDRAW 1
     */
     unsigned int    font          :1;
+
+    /*
+    ** Packed foreground / background colour -- see enhValue in TermPrimBuffer.h.
+    */
+    uint32_t        fgColor;
+    uint32_t        bgColor;
+
+    /*
+    ** Packed underline colour -- SGR 58 / 59.  When this is the all-zero
+    ** DEFAULT, the renderer falls back to fgColor for underline lines.
+    */
+    uint32_t        ulColor;
 } DtTermEnhPart, *DtEnh;
 
 /* 

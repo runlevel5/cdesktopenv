@@ -34,6 +34,7 @@
 #ifndef	_Dt_TermData_h
 #define	_Dt_TermData_h
 
+#include <stdint.h>
 #include "TermPrimData.h"
 #include "TermPrimRender.h"
 #include "TermFunctionKey.h"
@@ -64,9 +65,10 @@ typedef struct _VtsaveCursor {
     short cursorRow;      /* to save current row    */
     short cursorColumn;   /* to save current column */
     char enhFieldState; /* to save current Char Erase state   */
-    char enhVideoState; /* to save current video enhancements */
-    char enhFgColorState;   /* index into color pair for fg text color*/
-    char enhBgColorState;   /* index into color pair for bg text color */
+    uint32_t enhVideoState; /* to save current video enhancements */
+    uint32_t enhFgColorState;   /* packed (mode, payload) fg colour */
+    uint32_t enhBgColorState;   /* packed (mode, payload) bg colour */
+    uint32_t enhUlColorState;   /* packed (mode, payload) underline colour */
     Boolean originMode;  /* to save current origin mode        */
     Boolean wrapMode;    /* to save current Wrap mode    */
     int *GL;			/* left graphics character set	*/
@@ -122,7 +124,35 @@ typedef struct _DtTermDataRec {
     /*********************************************************************
      * Colors
      */
-    VtColorPairRec colorPairs[9];	/* color pair pixels		*/
+    VtColorPairRec colorPairs[17];	/* default + 16 ANSI colour slots */
+
+    /*
+    ** Lazy cache for the xterm 256-colour palette (entries 16..255).
+    ** Slots 0..15 are never written -- those colours live in colorPairs[]
+    ** above.  pal256Allocated[i] tracks whether pal256[i] holds a Pixel
+    ** that needs to be freed via XFreeColors at widget destroy time.
+    */
+    Pixel    pal256[256];
+    Boolean  pal256Allocated[256];
+
+    /*
+    ** Visual detection cache, populated once at widget colour-init time
+    ** by _DtTermDetectVisual.  isTrueColor is True for TrueColor and
+    ** DirectColor visuals -- the two classes where a Pixel value can be
+    ** synthesised directly from RGB components using mask arithmetic.
+    ** The shift / bit-count triples describe how to project an 8-bit
+    ** channel into the visual's mask position.
+    */
+    Boolean       isTrueColor;
+    unsigned long redMask;
+    unsigned long greenMask;
+    unsigned long blueMask;
+    int           redShift;
+    int           greenShift;
+    int           blueShift;
+    int           redBits;
+    int           greenBits;
+    int           blueBits;
 
     /*********************************************************************
      * User (and other) Function keys
@@ -142,11 +172,20 @@ typedef struct _DtTermDataRec {
 
     int compatLevel;         /* 1=vt100, 2=vt200 */
     int terminalId;          /* 220, 100, 101, 102  */
-    char enhVideoState;		/* current video enhancement state	*/
+    uint32_t enhVideoState;	/* current video enhancement state	*/
     char enhFieldState;		/* current field enhancement state	*/
-    char enhFgColorState;	/* current fg color enhancement state	*/
-    char enhBgColorState;	/* current bg color enhancement state	*/
+    uint32_t enhFgColorState;	/* packed (mode, payload) fg colour     */
+    uint32_t enhBgColorState;	/* packed (mode, payload) bg colour     */
+    uint32_t enhUlColorState;	/* packed (mode, payload) underline col */
     char enhFontState;		/* current font enhancement state	*/
+
+    /*
+    ** OSC 8 hyperlink state.  linkUrl is the URL currently in effect for
+    ** cells being written; NULL means no active link.  Owned by td, freed
+    ** via XtFree when replaced or cleared.  A future click handler will
+    ** look up the URL via this pointer.
+    */
+    char *linkUrl;
 
     VtSaveCursorRec saveCursor ;
  

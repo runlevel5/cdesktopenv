@@ -43,6 +43,7 @@ typedef void (*TermFontRenderFunction)(
     TermFont		  font,
     Pixel		  fg,
     Pixel		  bg,
+    Pixel		  ulFg,
     unsigned long	  flags,
     int			  x,
     int			  y,

@@ -39,6 +39,7 @@ typedef struct _TermBufferRec   *TermBuffer;
 typedef struct _TermEnhInfoRec  *TermEnhInfo;
 typedef struct _TermCharInfoRec *TermCharInfo;
 
+#include  <stdint.h>
 #include  <Xm/Xm.h>
 #include  "TermPrimOSDepI.h"
 #include  "TermPrimRender.h"
@@ -47,13 +48,47 @@ typedef struct _TermCharInfoRec *TermCharInfo;
 #define	TermENH_SECURE			(1 << 0)
 #define	TermENH_UNDERLINE		(1 << 1)
 #define	TermENH_OVERSTRIKE		(1 << 2)
+#define	TermENH_DOUBLE_UNDERLINE	(1 << 3)
+#define	TermENH_OVERLINE		(1 << 4)
+#define	TermENH_SUPERSCRIPT		(1 << 5)
+#define	TermENH_SUBSCRIPT		(1 << 6)
 
 #define	TermIS_SECURE(flags)		((flags) & TermENH_SECURE)
 #define	TermIS_UNDERLINE(flags)		((flags) & TermENH_UNDERLINE)
 #define	TermIS_OVERSTRIKE(flags)	((flags) & TermENH_OVERSTRIKE)
+#define	TermIS_DOUBLE_UNDERLINE(flags)	((flags) & TermENH_DOUBLE_UNDERLINE)
+#define	TermIS_OVERLINE(flags)		((flags) & TermENH_OVERLINE)
+#define	TermIS_SUPERSCRIPT(flags)	((flags) & TermENH_SUPERSCRIPT)
+#define	TermIS_SUBSCRIPT(flags)		((flags) & TermENH_SUBSCRIPT)
 
-typedef unsigned char   enhValue;
+/*
+** enhValue carries one enhancement field through the buffer / renderer
+** boundary.  For colour fields it is a packed (mode, payload) encoding:
+**   bits 24-31  mode flag  -- 0=DEFAULT, 1=INDEXED, 2=DIRECT_RGB
+**   bits  0-23  payload    -- palette slot or 0xRRGGBB
+** DEFAULT (all-zero) is the natural value for zero-initialised cells, so an
+** un-touched cell renders with the terminal's default fg / bg.  For non-colour
+** fields (video, field, font) the payload is the existing small value.
+*/
+typedef uint32_t        enhValue;
 typedef enhValue       *enhValues;
+
+#define ENH_MODE_DEFAULT        0x00U
+#define ENH_MODE_INDEXED        0x01U
+#define ENH_MODE_RGB            0x02U
+
+#define ENH_COLOR_MODE(v)       (((uint32_t)(v) >> 24) & 0xffU)
+#define ENH_COLOR_PAYLOAD(v)    ((uint32_t)(v) & 0x00ffffffU)
+#define ENH_IS_DEFAULT(v)       (ENH_COLOR_MODE(v) == ENH_MODE_DEFAULT)
+#define ENH_MAKE_DEFAULT()      ((enhValue) 0)
+#define ENH_MAKE_INDEXED(n)     ((enhValue)  \
+                                 (((uint32_t) ENH_MODE_INDEXED << 24) | \
+                                  ((uint32_t) (n) & 0x00ffffffU)))
+#define ENH_MAKE_RGB(r, g, b)   ((enhValue)  \
+                                 (((uint32_t) ENH_MODE_RGB << 24)   | \
+                                  (((uint32_t) (r) & 0xffU) << 16)  | \
+                                  (((uint32_t) (g) & 0xffU) <<  8)  | \
+                                  (((uint32_t) (b) & 0xffU))))
 
 typedef enum _countSpec
 {
@@ -69,6 +104,7 @@ typedef unsigned char termChar;
 typedef struct _TermEnhInfoRec {
     Pixel fg;
     Pixel bg;
+    Pixel ulFg;		/* underline-line pixel (SGR 58 / 59) */
     TermFont font;
     unsigned long flags;
 } TermEnhInfoRec;

@@ -33,12 +33,15 @@
 #include <wctype.h>
 
 #include "TermHeader.h"
+#include <string.h>	/* strtok_r */
+#include <Xm/CutPaste.h>	/* XmClipboard* */
 #include "TermPrimDebug.h"
 #include "TermPrimP.h"
 #include "TermPrimI.h"
 #include "TermP.h"
 #include "TermPrimData.h"
 #include "TermData.h"
+#include "TermColor.h"	/* _DtTermColorInitializeColorPair, _DtTermResolve256Pixel */
 #include "TermPrimBuffer.h"
 #include "TermPrimParserP.h"
 #include "TermFunction.h"
@@ -57,7 +60,7 @@
 
 /*****************************************************************************/
 
-#define NPARAM  16
+#define NPARAM  32
 #define PCOUNT(c)  ((c)->parms[0])
 #define BASE   1   /* row and column count base 0 or 1 */
 
@@ -874,22 +877,102 @@ _DtTermScrollingRegion(Widget w)   /* DECSTBM  CSIp;pr */
   }
 }
 
-void 
+void
 _DtTermCharAttributes(Widget w)   /* SGR CSIpm */
 {
   ParserContext context ;
-  int i,cnt ;
+  int cnt ;
+  int n ;
   Debug('P', fprintf(stderr,">>In func _DtTermCharAttributes\n")) ;
   context = GetParserContext(w) ;
   STORELASTARG(context) ;
-  if(PCOUNT(context)) {
-    for (cnt=1; cnt <= PCOUNT(context); cnt++)
-       _DtTermVideoEnhancement(w,context->parms[cnt]) ;
-   }
-  else
-   _DtTermVideoEnhancement(w,0) ;
-}
+  n = PCOUNT(context) ;
 
+  if (n == 0) {
+    _DtTermVideoEnhancement(w, 0) ;
+    return ;
+  }
+
+  /*
+  ** Walk the parameter list with peek-ahead so the compound colour
+  ** sub-sequences are consumed atomically:
+  **
+  **    38;5;N        indexed 256-colour foreground
+  **    48;5;N        indexed 256-colour background
+  **    38;2;R;G;B    direct-RGB foreground   (truecolor)
+  **    48;2;R;G;B    direct-RGB background   (truecolor)
+  **
+  ** A 38 / 48 followed by anything unrecognised falls through to the
+  ** legacy per-value handler, which leaves the existing behaviour intact.
+  */
+  cnt = 1 ;
+  while (cnt <= n) {
+    int value = context->parms[cnt] ;
+
+    if ((value == 38 || value == 48) && (cnt + 1) <= n) {
+      int     sub  = context->parms[cnt + 1] ;
+      Boolean isBg = (value == 48) ;
+
+      if (sub == 5 && (cnt + 2) <= n) {
+	int xcol = context->parms[cnt + 2] ;
+	if (xcol < 0)   xcol = 0 ;
+	if (xcol > 255) xcol = 255 ;
+	_DtTermSetColor(w, isBg, ENH_MAKE_INDEXED((unsigned int) xcol + 1)) ;
+	cnt += 3 ;
+	continue ;
+      }
+      if (sub == 2 && (cnt + 4) <= n) {
+	int r = context->parms[cnt + 2] ;
+	int g = context->parms[cnt + 3] ;
+	int b = context->parms[cnt + 4] ;
+	if (r < 0) r = 0 ;   if (r > 255) r = 255 ;
+	if (g < 0) g = 0 ;   if (g > 255) g = 255 ;
+	if (b < 0) b = 0 ;   if (b > 255) b = 255 ;
+	_DtTermSetColor(w, isBg,
+			ENH_MAKE_RGB((unsigned int) r,
+				     (unsigned int) g,
+				     (unsigned int) b)) ;
+	cnt += 5 ;
+	continue ;
+      }
+      /* fall through: unrecognised sub-form, dispatch 38/48 as legacy */
+    }
+
+    /*
+    ** SGR 58 sub-sequences: 58;5;N (indexed underline colour) and
+    ** 58;2;R;G;B (24-bit underline colour).  Same shape as 38/48.
+    */
+    if (value == 58 && (cnt + 1) <= n) {
+      int sub = context->parms[cnt + 1] ;
+
+      if (sub == 5 && (cnt + 2) <= n) {
+	int xcol = context->parms[cnt + 2] ;
+	if (xcol < 0)   xcol = 0 ;
+	if (xcol > 255) xcol = 255 ;
+	_DtTermSetUlColor(w, ENH_MAKE_INDEXED((unsigned int) xcol + 1)) ;
+	cnt += 3 ;
+	continue ;
+      }
+      if (sub == 2 && (cnt + 4) <= n) {
+	int r = context->parms[cnt + 2] ;
+	int g = context->parms[cnt + 3] ;
+	int b = context->parms[cnt + 4] ;
+	if (r < 0) r = 0 ;   if (r > 255) r = 255 ;
+	if (g < 0) g = 0 ;   if (g > 255) g = 255 ;
+	if (b < 0) b = 0 ;   if (b > 255) b = 255 ;
+	_DtTermSetUlColor(w, ENH_MAKE_RGB((unsigned int) r,
+					  (unsigned int) g,
+					  (unsigned int) b)) ;
+	cnt += 5 ;
+	continue ;
+      }
+      /* fall through: unrecognised sub-form for 58 -- dropped */
+    }
+
+    _DtTermVideoEnhancement(w, value) ;
+    cnt++ ;
+  }
+}
 void 
 _DtTermDeviceAttributes(Widget w)    /* DA CSIpc */
 {
@@ -922,6 +1005,406 @@ _DtTermDeviceAttributes(Widget w)    /* DA CSIpc */
           }
         sendEscSequence(w,buf) ;
         break;
+  }
+}
+
+/*
+** OSC 8 -- hyperlink set / clear.
+**   payload = "params ; URL"
+** params is the spec-reserved id= field (ignored); URL is the hyperlink
+** target.  An empty URL ends any active link.
+**
+** While a link is active we OR LINK_ACTIVE into td->enhVideoState, which
+** the buffer-insert path stamps onto each new cell.  The renderer treats
+** LINK_ACTIVE as an implicit underline so hyperlinked text is visibly
+** marked even when the application doesn't emit SGR 4.
+*/
+static void
+_DtTermOscHyperlink(Widget w, char *payload)
+{
+    DtTermPrimitiveWidget tw  = (DtTermPrimitiveWidget) w;
+    DtTermPrimData        tpd = tw->term.tpd;
+    DtTermWidget          vtw = (DtTermWidget) w;
+    DtTermData            td  = vtw->vt.td;
+    char                 *sep;
+    char                 *url;
+
+    if (payload == NULL) return;
+
+    /* Split params and URL on the first ';' .  The params side is
+       discarded because dtterm doesn't yet group ID'd hyperlinks. */
+    sep = strchr(payload, ';');
+    if (sep) {
+	url = sep + 1;
+    } else {
+	url = payload;
+    }
+
+    if (*url == '\0') {
+	/* End of link. */
+	if (td->linkUrl) {
+	    XtFree(td->linkUrl);
+	    td->linkUrl = NULL;
+	}
+	td->enhVideoState &= ~LINK_ACTIVE;
+    } else {
+	/* New link.  Replace any in-progress URL. */
+	if (td->linkUrl) {
+	    XtFree(td->linkUrl);
+	}
+	td->linkUrl = XtNewString(url);
+	td->enhVideoState |= LINK_ACTIVE;
+    }
+    (void) _DtTermPrimBufferSetEnhancement(tpd->termBuffer,
+	    tpd->topRow + tpd->cursorRow, tpd->cursorColumn,
+	    enhVideo, td->enhVideoState);
+}
+
+/*
+** Base64 decode a NUL-terminated string in place into `out`.  Returns the
+** number of bytes written, or -1 on malformed input.  The output buffer
+** must be at least 3 * strlen(in) / 4 bytes; the caller passes the
+** allocated size as `outCap` for a safety check.
+*/
+static int
+_DtTermB64Decode(const char *in, unsigned char *out, int outCap)
+{
+    static const signed char tbl[256] = {
+	[0]=-1,
+	['A']= 0,['B']= 1,['C']= 2,['D']= 3,['E']= 4,['F']= 5,['G']= 6,['H']= 7,
+	['I']= 8,['J']= 9,['K']=10,['L']=11,['M']=12,['N']=13,['O']=14,['P']=15,
+	['Q']=16,['R']=17,['S']=18,['T']=19,['U']=20,['V']=21,['W']=22,['X']=23,
+	['Y']=24,['Z']=25,
+	['a']=26,['b']=27,['c']=28,['d']=29,['e']=30,['f']=31,['g']=32,['h']=33,
+	['i']=34,['j']=35,['k']=36,['l']=37,['m']=38,['n']=39,['o']=40,['p']=41,
+	['q']=42,['r']=43,['s']=44,['t']=45,['u']=46,['v']=47,['w']=48,['x']=49,
+	['y']=50,['z']=51,
+	['0']=52,['1']=53,['2']=54,['3']=55,['4']=56,['5']=57,['6']=58,['7']=59,
+	['8']=60,['9']=61,['+']=62,['/']=63,
+    };
+    int n = 0;
+    unsigned int v = 0;
+    int bits = 0;
+    while (*in && *in != '=') {
+	signed char d = tbl[(unsigned char) *in++];
+	if (d < 0) {
+	    /* skip whitespace silently, fail on garbage */
+	    if (in[-1] == ' ' || in[-1] == '\n' || in[-1] == '\r' || in[-1] == '\t')
+		continue;
+	    return -1;
+	}
+	v = (v << 6) | (unsigned int) d;
+	bits += 6;
+	if (bits >= 8) {
+	    bits -= 8;
+	    if (n >= outCap) return -1;
+	    out[n++] = (unsigned char) ((v >> bits) & 0xff);
+	}
+    }
+    return n;
+}
+
+
+/*
+** OSC 52 -- clipboard set.
+**   payload = "selection ; base64data"
+** where selection is one or more of c/p/q/s/0..7 (we treat anything that
+** mentions 'c' as CLIPBOARD; PRIMARY is mapped onto CLIPBOARD too because
+** dtterm's existing PRIMARY ownership is wired to the cell-level selection
+** machinery in TermPrimSelect.c and would conflict with a free-form
+** OSC 52 payload).
+**
+** Query ('?' in place of base64data) is NOT implemented -- letting a
+** program read back the user's clipboard is a confused-deputy hazard.
+*/
+static void
+_DtTermOscClipboard(Widget w, char *payload)
+{
+    DtTermWidget tw  = (DtTermWidget) w;
+    DtTermData   td  = tw->vt.td;
+    Display     *dpy = XtDisplay(w);
+    Window       win = XtWindow(w);
+    char        *sep;
+    char        *sel;
+    char        *data;
+    unsigned char *decoded;
+    int          n;
+    long         item_id = 0;
+    long         data_id = 0;
+    XmString     label;
+    int          status;
+
+    if (!tw->vt.allowClipboardOps) {
+	/* Silently drop unless the user has opted in. */
+	return;
+    }
+    if (payload == NULL || *payload == '\0') return;
+    if (!XtIsRealized(w)) return;
+
+    sep = strchr(payload, ';');
+    if (!sep) return;
+    *sep = '\0';
+    sel = payload;
+    data = sep + 1;
+
+    /* Refuse query for safety. */
+    if (data[0] == '?' && data[1] == '\0') return;
+
+    /* We only handle "set" sequences directed at the clipboard.  Common
+       selection chars: 'c' clipboard, 'p' primary, 's' select, '0'..'7'
+       cut buffers.  Empty / unknown -> clipboard. */
+    (void) sel;	/* selection string accepted but treated uniformly */
+
+    n = (int) strlen(data);
+    if (n <= 0) return;
+    decoded = (unsigned char *) XtMalloc((Cardinal) ((n / 4) * 3 + 4));
+    n = _DtTermB64Decode(data, decoded, (n / 4) * 3 + 3);
+    if (n < 0) {
+	XtFree((char *) decoded);
+	return;
+    }
+    decoded[n] = '\0';
+
+    /* Push to the Motif clipboard.  This is the same path the
+       TermView "copy" menu uses and lands the text on CLIPBOARD where
+       other apps (xclip, browsers, IDEs) expect it. */
+    label = XmStringCreateLocalized("XM_TERM");
+    status = XmClipboardStartCopy(dpy, win, label,
+	    CurrentTime, w, NULL, &item_id);
+    if (status == ClipboardSuccess) {
+	status = XmClipboardCopy(dpy, win, item_id, "STRING",
+		(XtPointer) decoded, (unsigned long) n, 0, &data_id);
+	if (status == ClipboardSuccess) {
+	    (void) XmClipboardEndCopy(dpy, win, item_id);
+	} else {
+	    (void) XmClipboardCancelCopy(dpy, win, item_id);
+	}
+    }
+    XmStringFree(label);
+    XtFree((char *) decoded);
+}
+
+/*
+** OSC 4 -- palette query / set.  Payload is one or more `N;spec` pairs
+** separated by ';'.  spec may be '?' (query) or any X colour string.
+**
+** For N 0..15 we update the persistent colorPairs[N+1].{fg,bg} so future
+** SGR 30-37 / 90-97 references see the new colour.  For N 16..255 the lazy
+** pal256 cache is overwritten and re-allocated on next use.
+*/
+static void
+_DtTermOscPalette(Widget w, char *payload)
+{
+    DtTermWidget tw  = (DtTermWidget) w;
+    DtTermData   td  = tw->vt.td;
+    Display     *dpy = XtDisplay(w);
+    Colormap     cm  = w->core.colormap;
+
+    if (payload == NULL || *payload == '\0') return;
+
+    /* Walk the ';'-separated pairs in place using strtok.  payload is the
+       per-widget stringParms buffer so it's writable. */
+    char *save = NULL;
+    char *idxTok = strtok_r(payload, ";", &save);
+    while (idxTok) {
+	char *specTok = strtok_r(NULL, ";", &save);
+	if (!specTok) break;
+
+	int n = atoi(idxTok);
+	if (n < 0 || n > 255) {
+	    idxTok = strtok_r(NULL, ";", &save);
+	    continue;
+	}
+
+	if (specTok[0] == '?' && specTok[1] == '\0') {
+	    /* Query: respond with the current colour as 16-bit rgb. */
+	    XColor xc;
+	    char reply[80];
+	    Pixel cur = 0;
+	    int known = 0;
+
+	    if (n <= 15) {
+		int slot = n + 1;
+		if (!td->colorPairs[slot].initialized) {
+		    _DtTermColorInitializeColorPair(w, &td->colorPairs[slot]);
+		}
+		cur = td->colorPairs[slot].fg.pixel;
+		known = 1;
+	    } else if (td->pal256Allocated[n]) {
+		cur = td->pal256[n];
+		known = 1;
+	    } else {
+		/* Not yet allocated -- synthesise the canonical xterm RGB. */
+		unsigned short r, g, b;
+		/* Force allocation by calling the resolver. */
+		cur = _DtTermResolve256Pixel(w, (unsigned int) n);
+		known = 1;
+	    }
+	    if (known) {
+		xc.pixel = cur;
+		XQueryColor(dpy, cm, &xc);
+		(void) snprintf(reply, sizeof(reply),
+			"\033]4;%d;rgb:%04x/%04x/%04x\033\\",
+			n, xc.red, xc.green, xc.blue);
+		sendEscSequence(w, reply);
+	    }
+	} else {
+	    /* Set: parse + allocate, replace the slot's pixel. */
+	    XColor xc;
+	    if (!XParseColor(dpy, cm, specTok, &xc)) {
+		idxTok = strtok_r(NULL, ";", &save);
+		continue;
+	    }
+	    if (!XAllocColor(dpy, cm, &xc)) {
+		idxTok = strtok_r(NULL, ";", &save);
+		continue;
+	    }
+	    if (n <= 15) {
+		int slot = n + 1;
+		/* Drop the old pixel if we owned it. */
+		if (td->colorPairs[slot].initialized &&
+			!td->colorPairs[slot].fgCommon) {
+		    Pixel old = td->colorPairs[slot].fg.pixel;
+		    XFreeColors(dpy, cm, &old, 1, 0);
+		}
+		td->colorPairs[slot].fg = xc;
+		td->colorPairs[slot].bg = xc;
+		td->colorPairs[slot].fgCommon = False;
+		td->colorPairs[slot].bgCommon = False;
+		td->colorPairs[slot].initialized = True;
+	    } else {
+		if (td->pal256Allocated[n]) {
+		    Pixel old = td->pal256[n];
+		    XFreeColors(dpy, cm, &old, 1, 0);
+		}
+		td->pal256[n] = xc.pixel;
+		td->pal256Allocated[n] = True;
+	    }
+	}
+
+	idxTok = strtok_r(NULL, ";", &save);
+    }
+
+    /* New cells written after this point use the updated palette
+       directly via colorPairs[].  Existing on-screen cells keep their
+       previous colour until something else redraws them; a forced
+       XClearArea here was tried and turned out to cause repaint-order
+       glitches, so it is intentionally not done. */
+}
+
+/*
+** Helper for OSC 10 / 11 / 12: parse a colour spec or '?' query.  Returns 1
+** if the payload was an in-bounds set or query handled here, 0 otherwise.
+*/
+static int
+_DtTermOscDefaultColour(Widget w, int oscNum, const char *spec)
+{
+    DtTermPrimitiveWidget tw  = (DtTermPrimitiveWidget) w;
+    DtTermWidget          vtw = (DtTermWidget) w;
+    DtTermData            td  = vtw->vt.td;
+    Display              *dpy = XtDisplay(w);
+    Colormap              cm  = w->core.colormap;
+    XColor                xc;
+    char                  reply[64];
+    Pixel                 newPixel;
+
+    if (spec == NULL || *spec == '\0') {
+	return 0;
+    }
+
+    /* Query: respond with the current pixel's RGB in xterm's xparsecolour
+       format (rgb:RRRR/GGGG/BBBB), terminated by ST (\e\\). */
+    if (spec[0] == '?' && spec[1] == '\0') {
+	Pixel cur;
+	switch (oscNum) {
+	  case 10: cur = tw->primitive.foreground;     break;
+	  case 11: cur = w->core.background_pixel;     break;
+	  case 12: cur = td->colorPairs[0].fg.pixel;   /* cursor uses fg by default */
+		   break;
+	  default: return 0;
+	}
+	xc.pixel = cur;
+	XQueryColor(dpy, cm, &xc);
+	(void) snprintf(reply, sizeof(reply),
+		"\033]%d;rgb:%04x/%04x/%04x\033\\",
+		oscNum, xc.red, xc.green, xc.blue);
+	sendEscSequence(w, reply);
+	return 1;
+    }
+
+    /* Set: parse + allocate. */
+    if (!XParseColor(dpy, cm, spec, &xc)) {
+	return 0;
+    }
+    if (!XAllocColor(dpy, cm, &xc)) {
+	return 0;
+    }
+    newPixel = xc.pixel;
+
+    switch (oscNum) {
+      case 10:
+	/* default foreground.  Push through XtVaSetValues so the widget's
+	   set_values triggers a proper repaint.  Also update colorPair[0]
+	   so the cached default fg matches. */
+	XtVaSetValues(w, XtNforeground, (XtArgVal) newPixel, (String) NULL);
+	td->colorPairs[0].fg = xc;
+	td->colorPairs[0].fg.pixel = newPixel;
+	break;
+
+      case 11:
+	XtVaSetValues(w, XtNbackground, (XtArgVal) newPixel, (String) NULL);
+	td->colorPairs[0].bg = xc;
+	td->colorPairs[0].bg.pixel = newPixel;
+	break;
+
+      case 12:
+	/* Cursor colour: poke the cursorGC directly.  dtterm has no
+	   dedicated "cursor pixel" resource so this is the cleanest place
+	   for the change to land; the cursor will pick it up on the next
+	   blink toggle. */
+	if (tw->term.tpd && tw->term.tpd->cursorGC.gc) {
+	    tw->term.tpd->cursorGC.foreground = newPixel;
+	    XSetForeground(dpy, tw->term.tpd->cursorGC.gc, newPixel);
+	}
+	break;
+    }
+    return 1;
+}
+
+
+void
+_DtTermSetCursorStyle(Widget w)	/* DECSCUSR \e[N SP q */
+{
+  DtTermPrimitiveWidget tw = (DtTermPrimitiveWidget) w;
+  ParserContext context;
+  int ps;
+  unsigned char style;
+
+  Debug('P', fprintf(stderr,">>In func _DtTermSetCursorStyle\n"));
+  context = GetParserContext(w);
+  STORELASTARG(context);
+  /* Default Ps (no argument) is 1 -- blinking block, per the spec. */
+  ps = PCOUNT(context) ? context->parms[1] : 1;
+
+  switch (ps) {
+    case 0: case 1: case 2:
+      style = DtTERM_CHAR_CURSOR_BOX;
+      break;
+    case 3: case 4:
+      style = DtTERM_CHAR_CURSOR_BAR;	/* underline */
+      break;
+    case 5: case 6:
+      style = DtTERM_CHAR_CURSOR_VBAR;	/* vertical bar */
+      break;
+    default:
+      /* unrecognised -- silently ignore */
+      return;
+  }
+
+  if (tw->term.charCursorStyle != style) {
+    /* Setting via XtVaSetValues drives the widget's set_values method
+       which schedules a repaint of the cursor cell. */
+    XtVaSetValues(w, DtNcharCursorStyle, (XtArgVal) style, (String) NULL);
   }
 }
 
@@ -960,6 +1443,25 @@ _DtTermChangeTextParam(Widget w)  /* xterm  CSIp;pcCtrl-G  */
 		    strlen((char *) context->stringParms[0].str) + 1);
             (void) strcpy(tw->term.subprocessCWD,
 		    (char *) context->stringParms[0].str);
+            break;
+
+    case 4: /* set / query palette entry */
+            _DtTermOscPalette(w, (char *) context->stringParms[0].str);
+            break;
+
+    case 8: /* hyperlink (OSC 8 ; params ; URL ST) */
+            _DtTermOscHyperlink(w, (char *) context->stringParms[0].str);
+            break;
+
+    case 52: /* clipboard set (security-gated) */
+            _DtTermOscClipboard(w, (char *) context->stringParms[0].str);
+            break;
+
+    case 10: /* set / query default foreground colour */
+    case 11: /* set / query default background colour */
+    case 12: /* set / query cursor colour */
+            (void) _DtTermOscDefaultColour(w, context->parms[1],
+		    (const char *) context->stringParms[0].str);
             break;
    /*  These are handled by xterm but not by us.   
     case 46:  Change log file to context->stringParms[0] 
@@ -1038,6 +1540,7 @@ _DtTermSaveCursor(Widget w) /* DECSC ESC7 */
   vtd->saveCursor.enhFieldState = vtd->enhFieldState  ;  
   vtd->saveCursor.enhFgColorState = vtd->enhFgColorState;
   vtd->saveCursor.enhBgColorState = vtd->enhBgColorState;
+  vtd->saveCursor.enhUlColorState = vtd->enhUlColorState;
   vtd->saveCursor.GL = vtd->GL;
   vtd->saveCursor.GR = vtd->GR;
   vtd->saveCursor.G0 = vtd->G0;
@@ -1065,6 +1568,7 @@ _DtTermRestoreCursor(Widget w) /* DECRC ESC8 */
   vtd->enhFieldState  = vtd->saveCursor.enhFieldState ; 
   vtd->enhFgColorState = vtd->saveCursor.enhFgColorState;
   vtd->enhBgColorState = vtd->saveCursor.enhBgColorState;
+  vtd->enhUlColorState = vtd->saveCursor.enhUlColorState;
   vtd->GR = vtd->saveCursor.GR;
   vtd->GL = vtd->saveCursor.GL;
   vtd->G0 = vtd->saveCursor.G0;

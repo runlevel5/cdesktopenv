@@ -38,20 +38,32 @@
 /*
 ** Defines for video enhancements
 */
-#define	BOLD	     (1 << 5)
-#define SECURE       (1 << 4)
-#define HALF_BRIGHT  (1 << 3)
-#define UNDERLINE    (1 << 2)
-#define INVERSE      (1 << 1)
-#define BLINK        (1 << 0)
-#define VIDEO_MASK  (BOLD | SECURE | HALF_BRIGHT | UNDERLINE | INVERSE | BLINK)
+#define	BOLD	          (1 << 5)
+#define SECURE            (1 << 4)
+#define HALF_BRIGHT       (1 << 3)
+#define UNDERLINE         (1 << 2)
+#define INVERSE           (1 << 1)
+#define BLINK             (1 << 0)
+#define DOUBLE_UNDERLINE  (1 << 6)   /* SGR 21  */
+#define OVERLINE          (1 << 7)   /* SGR 53  */
+#define SUPERSCRIPT       (1 << 8)   /* SGR 73  */
+#define SUBSCRIPT         (1 << 9)   /* SGR 74  */
+#define LINK_ACTIVE       (1 << 10)  /* OSC 8 hyperlink */
+#define VIDEO_MASK  (BOLD | SECURE | HALF_BRIGHT | UNDERLINE | INVERSE | BLINK \
+                     | DOUBLE_UNDERLINE | OVERLINE | SUPERSCRIPT | SUBSCRIPT \
+                     | LINK_ACTIVE)
 
-#define IS_BOLD(flags)        ((flags) & BOLD)
-#define IS_SECURE(flags)      ((flags) & SECURE)
-#define IS_HALF_BRIGHT(flags) ((flags) & HALF_BRIGHT)
-#define IS_UNDERLINE(flags)   ((flags) & UNDERLINE)
-#define IS_INVERSE(flags)     ((flags) & INVERSE)
-#define IS_BLINK(flags)       ((flags) & BLINK)
+#define IS_BOLD(flags)              ((flags) & BOLD)
+#define IS_SECURE(flags)            ((flags) & SECURE)
+#define IS_HALF_BRIGHT(flags)       ((flags) & HALF_BRIGHT)
+#define IS_UNDERLINE(flags)         ((flags) & UNDERLINE)
+#define IS_INVERSE(flags)           ((flags) & INVERSE)
+#define IS_BLINK(flags)             ((flags) & BLINK)
+#define IS_DOUBLE_UNDERLINE(flags)  ((flags) & DOUBLE_UNDERLINE)
+#define IS_OVERLINE(flags)          ((flags) & OVERLINE)
+#define IS_SUPERSCRIPT(flags)       ((flags) & SUPERSCRIPT)
+#define IS_SUBSCRIPT(flags)         ((flags) & SUBSCRIPT)
+#define IS_LINK_ACTIVE(flags)       ((flags) & LINK_ACTIVE)
 
 /*
 ** Defines for field types
@@ -62,7 +74,12 @@
 #define FIELD_END       3
 #define FIELD_MASK      3
 
-#define COLOR_MASK      0x0F
+/*
+** COLOR_MASK formerly clamped the 4-bit colour bit-field to 0-15.  The
+** colour fields are now full 32-bit values carrying a packed (mode, payload)
+** encoding, so the mask preserves every bit.
+*/
+#define COLOR_MASK      0xFFFFFFFFU
 
 /* 
 ** Defines for font ID
@@ -73,7 +90,8 @@
 
 typedef enum _dtEnhID
 {
-    enhVideo = 0, enhField = 1, enhFont = 3, enhFgColor = 4, enhBgColor = 5
+    enhVideo = 0, enhField = 1, enhUlColor = 2, enhFont = 3,
+    enhFgColor = 4, enhBgColor = 5
 } dtEnhID;
 #define NUM_ENHANCEMENT_FIELDS 6
 

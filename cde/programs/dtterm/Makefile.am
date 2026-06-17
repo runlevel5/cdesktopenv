@@ -29,7 +29,7 @@ BUILT_SOURCES = $(CPP_TARGETS)
 CLEANFILES = $(CPP_TARGETS)
 
 cfgdir = $(CDE_INSTALLATION_TOP)/config
-dist_cfg_DATA = dtterm.ti
+dist_cfg_DATA = dtterm.ti dtterm-extra.ti
 
 Dtterm.ad: Dtterm.ad.src
 	$(RM) $@
@@ -53,3 +53,4 @@ if !HAS_UTEMPTER_LIBRARY
 	-chmod 4755 $(DESTDIR)$(bindir)/dtterm
 endif
 	@TIC@ dtterm.ti
+	@TIC@ -x $(srcdir)/dtterm-extra.ti

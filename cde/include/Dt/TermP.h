@@ -70,6 +70,43 @@ typedef struct _DtTermPart
     Boolean                     c132;
     Boolean			appKeypadMode;
     Boolean			appCursorMode;
+    /*
+    ** The 16-entry ANSI colour palette, settable via the *color0..*color15
+    ** resources.  Pixels are resolved by Xt's String -> Pixel converter at
+    ** widget initialise time from the resource defaults or user overrides.
+    ** colour[N] corresponds to xterm palette index N (slots 0..7 dim ANSI,
+    ** 8..15 bright); they are copied into td->colorPairs[1..16] in
+    ** _DtTermColorInit.
+    */
+    Pixel			color0;
+    Pixel			color1;
+    Pixel			color2;
+    Pixel			color3;
+    Pixel			color4;
+    Pixel			color5;
+    Pixel			color6;
+    Pixel			color7;
+    Pixel			color8;
+    Pixel			color9;
+    Pixel			color10;
+    Pixel			color11;
+    Pixel			color12;
+    Pixel			color13;
+    Pixel			color14;
+    Pixel			color15;
+    /*
+    ** xterm convention: SGR 1 (bold) promotes a 30..37 fg to its 90..97
+    ** bright twin.  Set False to render bold attributes without the colour
+    ** brightening (i.e. only via the bold font and / or overstrike).
+    */
+    Boolean			boldColors;
+
+    /*
+    ** OSC 52 clipboard control.  Defaults to False so a hostile program
+    ** can't silently slurp or replace the user's clipboard.  Set True via
+    ** Dtterm*allowClipboardOps if you want OSC 52 set / paste handling.
+    */
+    Boolean			allowClipboardOps;
 } DtTermPart;
 
 /* full instance record declaration... */

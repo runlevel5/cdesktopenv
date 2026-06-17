@@ -191,7 +191,7 @@ validateEnhancements
 /*
 ** A blank enhancement structure, it will come in handy.
 */
-static DtTermEnhPart blankEnh = {0, 0, 0, 0, 0};
+static DtTermEnhPart blankEnh = {0, 0, 0, 0, 0, 0};
 
 /* 
 ** Create and initialize the Dt-specific parts of the term buffer.
@@ -742,6 +742,9 @@ _DtTermSetEnhancement
       case enhBgColor:
         enhState->bgColor = value & COLOR_MASK;
         break;
+      case enhUlColor:
+        enhState->ulColor = value & COLOR_MASK;
+        break;
       case enhFont:
         enhState->font    = value & FONT_MASK;
         break;
@@ -757,6 +760,7 @@ _DtTermSetEnhancement
                         (enhState->field   != blankEnh.field  ) ||
                         (enhState->fgColor != blankEnh.fgColor) ||
                         (enhState->bgColor != blankEnh.bgColor) ||
+                        (enhState->ulColor != blankEnh.ulColor) ||
                         (enhState->font    != blankEnh.font   ));
     /* 
     ** return the correct count (which in this case will always be 0)
@@ -840,6 +844,7 @@ _DtTermGetEnhancement
     (*values)[(int)enhField  ] = (enh->field   & FIELD_MASK);
     (*values)[(int)enhFgColor] = (enh->fgColor & COLOR_MASK);
     (*values)[(int)enhBgColor] = (enh->bgColor & COLOR_MASK);
+    (*values)[(int)enhUlColor] = (enh->ulColor & COLOR_MASK);
     (*values)[(int)enhFont   ] = (enh->font    & FONT_MASK );
 
     /*
@@ -884,6 +889,7 @@ _DtTermGetEnhancement
                     ((*values)[(int)enhField  ] != (enh->field   & FIELD_MASK))||
                     ((*values)[(int)enhFgColor] != (enh->fgColor & COLOR_MASK))||
                     ((*values)[(int)enhBgColor] != (enh->bgColor & COLOR_MASK))||
+                    ((*values)[(int)enhUlColor] != (enh->ulColor & COLOR_MASK))||
                     ((*values)[(int)enhFont   ] != (enh->font    & FONT_MASK ))  )
                 {
                     /*

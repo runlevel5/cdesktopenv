@@ -39,6 +39,43 @@ XCOMM include "Dt"
 ! to be used as a function key:
 *menu_pulldown.menuAccelerator: <Key>None
 *menu_popup.menuAccelerator: <Key>None
+
+! ANSI 16-colour palette.  Each resource takes any X colour spec the
+! XmRPixel converter accepts (named colour, "#rrggbb", "rgb:rr/gg/bb").
+!
+!   *color0:  black      *color8:  gray40    ! SGR 30 / 90  - black/grey
+!   *color1:  red3       *color9:  red       ! SGR 31 / 91  - red
+!   *color2:  green3     *color10: green     ! SGR 32 / 92  - green
+!   *color3:  yellow3    *color11: yellow    ! SGR 33 / 93  - yellow
+!   *color4:  blue3      *color12: #5c5cff   ! SGR 34 / 94  - blue
+!   *color5:  magenta3   *color13: magenta   ! SGR 35 / 95  - magenta
+!   *color6:  cyan3      *color14: cyan      ! SGR 36 / 96  - cyan
+!   *color7:  gray90     *color15: white     ! SGR 37 / 97  - white
+!
+! Slots 0-7 are the dim 'colour3' family; slots 8-15 are the bright
+! variants used by SGR 90-97 / 100-107 and (when *boldColors is True)
+! by the xterm-style bold-brightens-fg promotion.
+!
+! xterm compatibility: when set True (the default), SGR 1 (bold) plus
+! a 30-37 foreground renders with the corresponding 90-97 bright
+! variant; set False to keep the dim colour with just the bold font.
+!
+! *boldColors: True
+
+! TERM exported to the child shell.  Defaults to dtterm-256color so that
+! curses applications (vim, neovim, tmux, htop, less, ...) pick up the
+! 256-colour palette out of the box.  Set this to dtterm for the historical
+! 8-colour TERM, or to dtterm-direct to advertise 24-bit truecolour:
+!
+! *termName: dtterm-256color
+! *termName: dtterm
+! *termName: dtterm-direct
+!
+! Both dtterm-256color and dtterm-direct are installed by `make install`
+! via tic; if you are running an uninstalled build and your $TERMINFO
+! database does not have these entries, run:
+!     tic -x cde/programs/dtterm/dtterm-extra.ti
+! once to compile them into ~/.terminfo, or fall back to *termName: dtterm.
 ! These will enable the menu accelerators which will allow F10 to act
 ! as the menu pulldown and popup accelerator:
 !*menu_pulldown.menuAccelerator: <Key>osfMenuBar

@@ -39,6 +39,7 @@ extern StateTable _DtTermStateStart;
 extern void _DtTermDeviceStatus(Widget w);
 extern void _DtTermPrimParserEnterNumAndPush(Widget w) ;
 extern void _DtTermPrintState(Widget w) ;
+extern void _DtTermSetCursorStyle(Widget w) ; /* DECSCUSR \e[N SP q */
 extern void _DtTermCursorPos(Widget w) ;
 extern void _DtTermEraseDisplay(Widget w) ;
 extern void _DtTermInsertChars(Widget w) ;

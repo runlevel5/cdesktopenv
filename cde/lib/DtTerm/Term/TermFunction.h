@@ -35,6 +35,7 @@
 #define	_Dt_TermFunction_h
 
 #include "TermPrimFunction.h"
+#include "TermPrimBuffer.h"	/* enhValue */
 
 extern void _DtTermFuncScroll(Widget w, int count,
 	FunctionSource functionSource);
@@ -79,6 +80,19 @@ extern void _DtTermFuncTab(Widget w, int count,
 	FunctionSource functionSource);
 
 extern void _DtTermVideoEnhancement(Widget w,int value);
+
+/*
+** Write a packed enhValue colour to the current fg or bg slot and
+** stamp it onto the cell at the cursor.  Used by the SGR parser to
+** apply compound 38;5;N / 48;5;N / 38;2;R;G;B / 48;2;R;G;B sequences.
+*/
+extern void _DtTermSetColor(Widget w, Boolean isBg, enhValue v);
+
+/*
+** Write a packed enhValue underline colour and stamp it on the cell at
+** the cursor.  Used by the SGR parser for SGR 58;5;N / 58;2;R;G;B / 59.
+*/
+extern void _DtTermSetUlColor(Widget w, enhValue v);
 
 extern void _DtTermFontEnhancement(Widget w,int value);
 
